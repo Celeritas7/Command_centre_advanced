@@ -1,0 +1,78 @@
+<!-- =============================================
+     CC BRAIN CLIENT — INTEGRATION SNIPPETS
+     Copy the appropriate snippet into each app
+     ============================================= -->
+
+
+<!-- ==========================================
+     SNIPPET A: Project 1 apps (native Supabase)
+     Apps: Calendar, Cost, Food, Eagle Eye, Ghost,
+           Parts, Code Sensei, Logi, Command Centre
+     These already use CC's Supabase instance
+     ==========================================
+
+     Paste BEFORE your app's closing </body> tag,
+     AFTER your existing Supabase <script> tag.
+-->
+
+<script src="https://celeritas7.github.io/command-centre/brain/cc-brain-client.js"></script>
+<script>
+  // CC Brain — native mode (same Supabase)
+  // `sb` is your app's existing Supabase client variable
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof CC_BRAIN !== 'undefined' && typeof sb !== 'undefined') {
+      CC_BRAIN.init({ mode: 'native', sb: sb });
+    }
+  });
+</script>
+
+
+<!-- ==========================================
+     SNIPPET B: Project 2 apps (dual Supabase)
+     Apps: JLPT, Burmese (x3), English, Chinese,
+           JP Grammar
+     These use a SEPARATE Supabase for study data
+     ==========================================
+
+     Paste BEFORE your app's closing </body> tag.
+     Requires Supabase JS already loaded.
+-->
+
+<script src="https://celeritas7.github.io/command-centre/brain/cc-brain-client.js"></script>
+<script>
+  // CC Brain — dual mode (creates a second read-only connection to CC's Supabase)
+  // Your app's own `sb` is untouched — CC_BRAIN uses its own client internally
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof CC_BRAIN !== 'undefined') {
+      CC_BRAIN.init({ mode: 'dual' });
+    }
+  });
+</script>
+
+
+<!-- ==========================================
+     SNIPPET C: Custom renderer registration
+     Add BEFORE CC_BRAIN.init() if your app needs
+     a custom overlay for a specific alert type
+     ==========================================
+-->
+
+<script>
+  // Example: register a custom renderer for a new alert type
+  if (typeof CC_BRAIN !== 'undefined') {
+    CC_BRAIN.registerRenderer('custom_type', (item, overlay) => {
+      overlay.innerHTML = `
+        <div class="cc-alert-bg"></div>
+        <div class="cc-card">
+          <div class="cc-card-title">
+            <span class="cc-alert-badge">CUSTOM</span> ${item.title}
+          </div>
+          <div class="cc-card-msg">${item.message}</div>
+          <div class="cc-card-actions">
+            <button class="cc-btn cc-btn-primary"
+              onclick="CC_BRAIN.dismissAlert('${item.id}')">Done</button>
+          </div>
+        </div>`;
+    });
+  }
+</script>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>⚡</text></svg>">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Command Centre</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0d0d0d; color:#e8e0d4; font-family:'JetBrains Mono',monospace; }
+  .cc-header {
+    padding:16px 20px; border-bottom:1px solid #d4890022;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .cc-logo { font-size:14px; font-weight:700; color:#d48900; letter-spacing:2px; }
+  .cc-main { padding:20px; max-width:600px; margin:0 auto; }
+  .cc-section { margin-bottom:24px; }
+  .cc-section-title {
+    font-size:9px; letter-spacing:2px; color:#888; margin-bottom:8px;
+    text-transform:uppercase;
+  }
+  #brain-status { margin-bottom:16px; }
+  #brain-spotlight { margin-bottom:16px; }
+  #brain-overrides { margin-bottom:16px; }
+  #brain-forecast { margin-bottom:16px; }
+  #brain-insight { margin-bottom:16px; }
+  .cc-log { font-size:11px; color:#666; line-height:1.8; }
+  .cc-log-entry { padding:2px 0; border-bottom:1px solid #ffffff08; }
+  .cc-btn-small {
+    padding:6px 12px; border-radius:6px; border:1px solid #d4890033;
+    background:#1a1a1a; color:#d48900; font-family:inherit; font-size:11px;
+    cursor:pointer; margin-right:8px; margin-bottom:6px;
+  }
+  .cc-btn-small:hover { background:#222; }
+</style>
+</head>
+<body>
+
+<div class="cc-header">
+  <div class="cc-logo">⚡ COMMAND CENTRE</div>
+  <div id="brain-status">Loading brain...</div>
+</div>
+
+<div class="cc-main">
+  <div id="brain-spotlight"></div>
+  <div id="brain-overrides"></div>
+
+  <div class="cc-section">
+    <div class="cc-section-title">Trigger forecast</div>
+    <div id="brain-forecast">Loading...</div>
+  </div>
+
+  <div class="cc-section">
+    <div class="cc-section-title">AI game plan</div>
+    <div id="brain-insight">—</div>
+  </div>
+
+  <div class="cc-section">
+    <div class="cc-section-title">Brain controls (dev)</div>
+    <button class="cc-btn-small" onclick="testBlocker()">Test blocker</button>
+    <button class="cc-btn-small" onclick="testAlert()">Test cost alert</button>
+    <button class="cc-btn-small" onclick="testNudge()">Test nudge</button>
+    <button class="cc-btn-small" onclick="clearAll()">Clear all</button>
+    <button class="cc-btn-small" onclick="refreshBrain()">Refresh brain</button>
+  </div>
+
+  <div class="cc-section">
+    <div class="cc-section-title">Event log</div>
+    <div id="event-log" class="cc-log"></div>
+  </div>
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Brain modules (in production, these are inlined or bundled) -->
+<script src="brain/cc-brain-client.js"></script>
+<script src="brain/cc-brain-trigger-engine.js"></script>
+<script src="brain/cc-brain-stack-ops.js"></script>
+<script src="brain/cc-brain-scheduler.js"></script>
+<script src="brain/cc-brain-huddle.js"></script>
+
+<script>
+// =============================================
+// CC BRAIN WIRING
+// This is the integration pattern your real CC app will use
+// =============================================
+
+const CC_SB_URL = 'https://wylxvmkcrexwfpjpbhyy.supabase.co';
+const CC_SB_ANON = ''; // ← fill with your anon key
+
+let sb = null;
+
+function log(msg) {
+  const el = document.getElementById('event-log');
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+  el.innerHTML = `<div class="cc-log-entry">${time} — ${msg}</div>` + el.innerHTML;
+}
+
+async function initBrain() {
+  if (!CC_SB_ANON) {
+    log('⚠️ Set CC_SB_ANON in index.html to activate brain');
+    document.getElementById('brain-status').innerHTML =
+      '<span style="color:#ff4444;font-size:11px">No anon key — set CC_SB_ANON</span>';
+    return;
+  }
+
+  // 1. Create Supabase client
+  sb = supabase.createClient(CC_SB_URL, CC_SB_ANON);
+  log('Supabase connected');
+
+  // 2. Init brain client (CC uses native mode — same sb)
+  await CC_BRAIN.init({ mode: 'native', sb });
+  log('Brain client initialized — polling every 60s');
+
+  // 3. Load brain context for huddle
+  await refreshBrain();
+
+  // 4. Start trigger engine evaluation loop
+  startTriggerLoop();
+
+  // 5. Stack garbage collection every 30 min
+  setInterval(() => CC_STACK.stackGarbageCollect(sb), 30 * 60 * 1000);
+  log('Stack GC scheduled (every 30 min)');
+}
+
+async function refreshBrain() {
+  if (!sb) return;
+  try {
+    const ctx = await CC_HUDDLE.buildBrainHuddleContext(sb);
+
+    document.getElementById('brain-status').innerHTML = CC_HUDDLE.renderBrainStatusBar(ctx);
+    document.getElementById('brain-spotlight').innerHTML = CC_HUDDLE.renderSpotlight(ctx);
+    document.getElementById('brain-overrides').innerHTML = CC_HUDDLE.renderOverrideWarnings(ctx);
+    document.getElementById('brain-forecast').innerHTML = CC_HUDDLE.renderTriggerForecast(ctx);
+
+    log('Brain refreshed');
+  } catch (e) {
+    log('Brain refresh error: ' + e.message);
+  }
+}
+
+// --- Trigger evaluation (runs on CC's poll cycle) ---
+let lastKnownLocation = 'home';
+
+function startTriggerLoop() {
+  // Get GPS position
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const newLocation = CC_TRIGGERS.detectLocation(latitude, longitude);
+
+        // Location change detection
+        if (newLocation !== lastKnownLocation) {
+          log(`Location: ${lastKnownLocation} → ${newLocation}`);
+          await CC_STACK.handleLocationChange(sb, newLocation, lastKnownLocation);
+
+          // If leaving office, check departure trigger
+          if (lastKnownLocation === 'office') {
+            // In real CC, check Jobcan status here
+            // await CC_TRIGGERS.triggerOfficeDeparture(sb, false, checkoutLinks);
+          }
+
+          lastKnownLocation = newLocation;
+          await refreshBrain();
+        }
+
+        // Evaluate time-based triggers
+        await CC_TRIGGERS.evaluate(sb, {
+          lat: latitude,
+          lng: longitude,
+          jobcanStatus: { checkedIn: true }, // replace with real Jobcan check
+          checkoutLinks: [],
+          checkinLinks: [],
+        });
+      },
+      (err) => log('GPS error: ' + err.message),
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+    log('GPS watch started');
+  } else {
+    log('GPS not available — time triggers only');
+    // Fallback: evaluate time triggers every 60s without GPS
+    setInterval(async () => {
+      await CC_TRIGGERS.evaluate(sb, {
+        lat: 0, lng: 0,
+        jobcanStatus: { checkedIn: true },
+        checkoutLinks: [],
+        checkinLinks: [],
+      });
+    }, 60000);
+  }
+}
+
+// --- Scheduler integration ---
+async function updateScheduledTeam() {
+  if (!sb) return;
+  const { team, slotName, overridesApplied } = await CC_SCHEDULER.getCurrentTeam(sb, {
+    location: lastKnownLocation,
+  });
+  await CC_STACK.setBaseTeam(sb, team);
+  await CC_STACK.setScheduleSlot(sb, slotName);
+  log(`Scheduler: ${team} (${slotName})${overridesApplied ? ' [override]' : ''}`);
+}
+
+// Run scheduler every 5 minutes
+setInterval(updateScheduledTeam, 5 * 60 * 1000);
+
+// --- Dev test buttons ---
+async function testBlocker() {
+  if (!sb) return;
+  await sb.from('command_centre_blockers').insert({
+    type: 'checkout', message: 'Test: Check out of Jobcan',
+    priority: 'critical', data: {
+      links: [{ label: 'Jobcan', url: 'https://jobcan.jp' }],
+      renderer: 'checkout'
+    }, active: true
+  });
+  log('Test blocker created');
+  await CC_BRAIN.check();
+}
+
+async function testAlert() {
+  if (!sb) return;
+  await sb.from('command_centre_alerts').insert({
+    type: 'cost_popup', title: 'Test: Log expense',
+    message: 'Near Lawson — did you buy something?',
+    renderer: 'cost_popup',
+    data: { shop: 'Lawson', amount: 450 }, active: true
+  });
+  log('Test cost alert created');
+  await CC_BRAIN.check();
+}
+
+async function testNudge() {
+  if (!sb) return;
+  await sb.from('command_centre_alerts').insert({
+    type: 'nudge', title: 'Language study',
+    message: 'Time to study — open JLPT or Grammar app.',
+    renderer: 'nudge', data: {}, active: true
+  });
+  log('Test nudge created');
+  await CC_BRAIN.check();
+}
+
+async function clearAll() {
+  if (!sb) return;
+  await sb.from('command_centre_blockers').update({ active: false }).eq('active', true);
+  await sb.from('command_centre_alerts').update({ active: false }).eq('active', true);
+  await CC_STACK.stackClear(sb, { reason: 'dev_clear' });
+  log('All cleared');
+  await CC_BRAIN.check();
+  await refreshBrain();
+}
+
+// --- Boot ---
+document.addEventListener('DOMContentLoaded', initBrain);
+</script>
+</body>
+</html>
