@@ -31,18 +31,21 @@ Controls 16 apps via a message bus pattern — CC is the brain, all apps obey it
 
 ```
 command-centre/
-├── index.html                     ← CC app (GitHub Pages)
+├── index.html                     ← CC app (GitHub Pages) — brain wired
 ├── brain/
 │   ├── cc-brain-client.js         ← universal client (all apps)
 │   ├── cc-brain-trigger-engine.js ← 7 triggers (CC only)
 │   ├── cc-brain-stack-ops.js      ← LIFO interrupt stack (CC only)
 │   ├── cc-brain-scheduler.js      ← schedule + overrides (CC only)
 │   ├── cc-brain-huddle.js         ← status/forecast/AI (CC only)
+│   ├── INTEGRATION-SNIPPETS.html  ← copy-paste templates for all apps
 │   └── README.md
 ├── sql/
+│   ├── 00-run-all.sql             ← one-shot combined runner
 │   ├── 01-blockers-alerts.sql     ← command_centre_blockers + command_centre_alerts
 │   ├── 02-active-team.sql         ← command_centre_active_team (LIFO stack)
-│   └── 03-settings.sql            ← command_centre_brain_settings + seed data
+│   ├── 03-settings.sql            ← command_centre_brain_settings + seed data
+│   └── 04-verify.sql              ← post-setup health check
 └── README.md                      ← this file
 ```
 
@@ -53,16 +56,44 @@ command-centre/
 In Supabase SQL Editor (https://wylxvmkcrexwfpjpbhyy.supabase.co):
 
 ```
-Run sql/01-blockers-alerts.sql
-Run sql/02-active-team.sql
-Run sql/03-settings.sql
+Run sql/00-run-all.sql
 ```
+
+Then verify: `Run sql/04-verify.sql`
+Expected: blockers=0, alerts=0, active_team=1, settings=3
 
 ### 2. Set anon key
 
 In `brain/cc-brain-client.js`, fill `CC_SB_ANON` with your project's anon key.
 
-### 3. Deploy
+### 3. Replace index.html with your real CC app
+
+Copy your real Command Centre `index.html` into this repo, then add the brain wiring:
+
+**In `<head>`:**
+```html
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>⚡</text></svg>">
+```
+
+**Before closing `</body>`:**
+```html
+<script src="brain/cc-brain-client.js"></script>
+<script src="brain/cc-brain-trigger-engine.js"></script>
+<script src="brain/cc-brain-stack-ops.js"></script>
+<script src="brain/cc-brain-scheduler.js"></script>
+<script src="brain/cc-brain-huddle.js"></script>
+```
+
+**Inside your existing boot function:**
+```javascript
+CC_BRAIN.init({ mode: 'native', sb: sb });
+```
+
+### 4. Test with brain-test.html
+
+Open `brain-test.html` to test blockers, alerts, nudges, and verify the brain is reading from Supabase correctly.
+
+### 5. Deploy
 
 Push to GitHub → GitHub Pages serves `index.html` at the root.
 
