@@ -8,7 +8,7 @@
 const CC_BRAIN = (() => {
   // --- Configuration ---
   const CC_SB_URL = 'https://wylxvmkcrexwfpjpbhyy.supabase.co';
-  const CC_SB_ANON = ''; // ← fill with CC project anon key
+  const CC_SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak'; // CC project anon key
   const POLL_INTERVAL = 60000; // 60 seconds
   const APP_NAME = document.title || 'unknown_app';
 
