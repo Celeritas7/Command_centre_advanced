@@ -953,7 +953,7 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 <!-- CENTERED OVERLAY -->
 <div class="ov-bg" id="ovBg" onclick="if(event.target===this)closeOv()">
   <div class="ov-panel"><div class="ov-top"><div class="ov-title">Locker Room</div><div class="ov-close" onclick="closeOv()">✕</div></div>
-    <div class="ov-tabs"><button class="ov-tab active" id="ovTabB" onclick="switchOvTab('bench')">📋 Bench</button><button class="ov-tab" id="ovTabR" onclick="switchOvTab('rules')">📏 Rules</button><button class="ov-tab" id="ovTabS" onclick="switchOvTab('settings')">⚙️</button></div>
+    <div class="ov-tabs"><button class="ov-tab active" id="ovTabB" onclick="switchOvTab('bench')">📋 Bench</button><button class="ov-tab" id="ovTabR" onclick="switchOvTab('rules')">📏 Rules</button><button class="ov-tab" id="ovTabS" onclick="switchOvTab('settings')">⚙️</button><button class="ov-tab" id="ovTabBr" onclick="switchOvTab('brain')">🧠</button></div>
     <div id="ovContent"></div>
   </div>
 </div>
@@ -3637,8 +3637,8 @@ function updateClock(){document.getElementById('timeD').textContent=new Date().t
 // ===== OVERLAY =====
 function openOv(){document.getElementById('ovBg').classList.add('show');renderOv()}
 function closeOv(){document.getElementById('ovBg').classList.remove('show')}
-function switchOvTab(t){ovTab=t;document.getElementById('ovTabB').classList.toggle('active',t==='bench');document.getElementById('ovTabR').classList.toggle('active',t==='rules');document.getElementById('ovTabS').classList.toggle('active',t==='settings');renderOv()}
-function renderOv(){document.getElementById('ovContent').innerHTML=ovTab==='bench'?renderBench():ovTab==='settings'?renderSettings():renderRules()}
+function switchOvTab(t){ovTab=t;document.getElementById('ovTabB').classList.toggle('active',t==='bench');document.getElementById('ovTabR').classList.toggle('active',t==='rules');document.getElementById('ovTabS').classList.toggle('active',t==='settings');document.getElementById('ovTabBr').classList.toggle('active',t==='brain');renderOv()}
+function renderOv(){document.getElementById('ovContent').innerHTML=ovTab==='bench'?renderBench():ovTab==='settings'?renderSettings():ovTab==='brain'?renderBrain():renderRules()}
 
 // ===== BENCH =====
 function renderBench(){
@@ -4481,7 +4481,355 @@ function ssInitListeners(){
   ssResetTimer();
 }
 
+// ===== BRAIN: EXPANDED PERSONALITY SYSTEM =====
+// Default personalities for all squads not yet in PERSONALITIES
+const DEFAULT_PERSONALITIES={
+  'App Gen':{ico:'💻',name:'App Gen',tone:'creative',emergencyBehavior:'SILENT',
+    brief:'Builder mode. What are you shipping today? Stop polishing — launch something.'},
+  'Quick Study':{ico:'📖',name:'Quick Study',tone:'curious',emergencyBehavior:'SILENT',
+    brief:'What did you learn today? One concept, explained simply. That\'s the test.'},
+  'AI Study':{ico:'🤖',name:'AI Study',tone:'analytical',emergencyBehavior:'SILENT',
+    brief:'AI moves fast. You should too. Read one paper, try one technique. Stay current.'},
+  'Manager Tasks':{ico:'📨',name:'Manager Tasks',tone:'professional',emergencyBehavior:'SILENT',
+    brief:'Check inbox. Respond within 4 hours. Don\'t let things pile up.'},
+  'Reminders':{ico:'⏰',name:'Reminders',tone:'neutral',emergencyBehavior:'SILENT',
+    brief:'Review your reminders. What\'s overdue? Handle the oldest one first.'},
+  'People Tasks':{ico:'👥',name:'People Tasks',tone:'warm',emergencyBehavior:'SILENT',
+    brief:'Who needs something from you? People remember reliability. Deliver.'},
+  'Food':{ico:'🍳',name:'Food',tone:'nurturing',emergencyBehavior:'GENTLE',
+    brief:'Your body needs fuel. Check the fridge — cook something real, not conbini.'},
+  'Weather':{ico:'⛅',name:'Weather',tone:'practical',emergencyBehavior:'SILENT',
+    brief:'Check the forecast. Dress right. Carry an umbrella if needed.'},
+  'Health':{ico:'💊',name:'Health',tone:'caring',emergencyBehavior:'CAPTAIN',
+    brief:'How do you feel today? Log any symptoms. Prevention beats treatment.'},
+  'Eagle Eye':{ico:'🦅',name:'Eagle Eye',tone:'precise',emergencyBehavior:'SILENT',
+    brief:'ECN status check. What\'s pending? What\'s cascading? Stay on top of versions.'},
+  'Ghost Tracker':{ico:'👻',name:'Ghost Tracker',tone:'methodical',emergencyBehavior:'SILENT',
+    brief:'TX-GHOST unit status. Any builds waiting? Any test failures? Track them.'},
+  'Part Inventory':{ico:'🔩',name:'Part Inventory',tone:'organized',emergencyBehavior:'SILENT',
+    brief:'Stock levels good? Anything on backorder? Reorder before you run out.'},
+  'Sleep':{ico:'😴',name:'Sleep',tone:'gentle',emergencyBehavior:'CAPTAIN',
+    brief:'Wind down. Screens off in 30 minutes. Tomorrow depends on tonight\'s sleep.'},
+  'Fashion':{ico:'👔',name:'Fashion',tone:'confident',emergencyBehavior:'SILENT',
+    brief:'Check tomorrow\'s outfit now. Iron if needed. Looking sharp costs zero money.'},
+  'Cleaning':{ico:'🧹',name:'Cleaning',tone:'disciplined',emergencyBehavior:'SILENT',
+    brief:'Clean space, clear mind. One surface, 5 minutes. That\'s all it takes.'},
+};
+
+// Merge into PERSONALITIES at runtime
+function ensureAllPersonalities(){
+  SQUADS.forEach(function(sq){
+    var sn=sq.name;
+    if(!PERSONALITIES[sn]&&DEFAULT_PERSONALITIES[sn]){
+      PERSONALITIES[sn]=DEFAULT_PERSONALITIES[sn];
+    }
+  });
+}
+ensureAllPersonalities();
+
+// ===== BRAIN: CLASH RESOLUTION =====
+// Priority tiers: higher number = higher priority when clashing
+// Editable from Brain tab, saved to Supabase
+let clashPriorities={
+  // Tier 4: Non-negotiable (blockers)
+  'Health':4,'Sleep':4,
+  // Tier 3: Self-care (mid/def)
+  'Food':3,'Exercise':3,'Cleaning':3,
+  // Tier 2: Work/Growth (attackers)
+  'Manager Tasks':2,'Reminders':2,'People Tasks':2,'Executive':2,'App Gen':2,'Quick Study':2,'AI Study':2,
+  // Tier 1: Maintenance
+  'Cost':1,'Weather':1,'Fashion':1,'Eagle Eye':1,'Ghost Tracker':1,'Part Inventory':1,'Psychology':1,
+};
+
+let clashRules={
+  weekendShieldsUp:{enabled:true,beforeHour:13,description:'Defenders/Mid before Attackers until 1 PM'},
+  creditEmergency:{enabled:true,threshold:10,description:'Force squad if credits below threshold'},
+  streakProtection:{enabled:true,description:'Squad with active streak gets +1 tier boost'},
+  moodOverride:{enabled:true,description:'Emergency mode → Health/Psychology become sole captains'},
+};
+
+async function loadClashConfig(){
+  try{
+    var r=await sb.from('command_centre_brain_settings').select('value').eq('key','clash_config').single();
+    if(r.data&&r.data.value){
+      if(r.data.value.priorities)clashPriorities=r.data.value.priorities;
+      if(r.data.value.rules)clashRules=r.data.value.rules;
+    }
+  }catch(e){}
+}
+
+async function saveClashConfig(){
+  var payload={priorities:clashPriorities,rules:clashRules};
+  await sb.from('command_centre_brain_settings').upsert({key:'clash_config',value:payload},{onConflict:'key'});
+}
+
+// Resolve which squad wins when two want priority
+function resolveClash(squadA,squadB){
+  var pa=clashPriorities[squadA]||1, pb=clashPriorities[squadB]||1;
+  // Streak boost
+  if(clashRules.streakProtection&&clashRules.streakProtection.enabled){
+    var sa=(streakData[squadA]||{}).streak||0, sba=(streakData[squadB]||{}).streak||0;
+    if(sa>=3)pa+=1;
+    if(sba>=3)pb+=1;
+  }
+  // Weekend shields
+  if(clashRules.weekendShieldsUp&&clashRules.weekendShieldsUp.enabled&&dayType()!=='weekday'){
+    var hr=new Date().getHours();
+    if(hr<(clashRules.weekendShieldsUp.beforeHour||13)){
+      var sdA=squadDef(squadA),sdB=squadDef(squadB);
+      if(sdA&&sdA.type==='attacker')pa-=2;
+      if(sdB&&sdB.type==='attacker')pb-=2;
+    }
+  }
+  // Emergency mode
+  if(emergencyMode&&clashRules.moodOverride&&clashRules.moodOverride.enabled){
+    if(squadA==='Health'||squadA==='Psychology')pa+=5;
+    if(squadB==='Health'||squadB==='Psychology')pb+=5;
+  }
+  return pa>=pb?squadA:squadB;
+}
+
+// ===== BRAIN: PERSONALITY EDITOR SAVE/LOAD =====
+async function loadPersonalityConfig(){
+  try{
+    var r=await sb.from('command_centre_brain_settings').select('value').eq('key','personalities').single();
+    if(r.data&&r.data.value){
+      Object.entries(r.data.value).forEach(function(e){
+        var sn=e[0],cfg=e[1];
+        if(PERSONALITIES[sn]){
+          if(cfg.tone)PERSONALITIES[sn].tone=cfg.tone;
+          if(cfg.brief)PERSONALITIES[sn].brief=cfg.brief;
+          if(cfg.emergencyBehavior)PERSONALITIES[sn].emergencyBehavior=cfg.emergencyBehavior;
+          if(cfg.takeover)PERSONALITIES[sn].takeover=cfg.takeover;
+        }
+      });
+    }
+  }catch(e){}
+}
+
+async function savePersonalityConfig(){
+  var payload={};
+  Object.entries(PERSONALITIES).forEach(function(e){
+    var sn=e[0],p=e[1];
+    payload[sn]={tone:p.tone,brief:p.brief||'',emergencyBehavior:p.emergencyBehavior||'SILENT',takeover:p.takeover||null};
+  });
+  await sb.from('command_centre_brain_settings').upsert({key:'personalities',value:payload},{onConflict:'key'});
+}
+
+// ===== BRAIN TAB RENDERER =====
+let brainSubTab='personalities'; // 'personalities' | 'clash' | 'status'
+
+function renderBrain(){
+  var h='';
+
+  // Sub-tabs
+  h+='<div style="display:flex;gap:4px;margin-bottom:12px">';
+  h+='<button class="ov-tab '+(brainSubTab==='personalities'?'active':'')+'" style="font-size:10px;padding:5px 10px" onclick="brainSubTab=\'personalities\';renderOv()">👤 Squads</button>';
+  h+='<button class="ov-tab '+(brainSubTab==='clash'?'active':'')+'" style="font-size:10px;padding:5px 10px" onclick="brainSubTab=\'clash\';renderOv()">⚔️ Clash Rules</button>';
+  h+='<button class="ov-tab '+(brainSubTab==='status'?'active':'')+'" style="font-size:10px;padding:5px 10px" onclick="brainSubTab=\'status\';renderOv()">📡 Status</button>';
+  h+='</div>';
+
+  if(brainSubTab==='personalities')h+=renderBrainPersonalities();
+  else if(brainSubTab==='clash')h+=renderBrainClash();
+  else h+=renderBrainStatus();
+  return h;
+}
+
+function renderBrainPersonalities(){
+  var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">Squad Personalities</div>';
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px;line-height:1.5">Each squad has a personality that drives briefings, takeover behavior, and emergency response. Tap to edit.</div>';
+
+  // Group by player type
+  var types=[
+    {key:'attacker',name:'⚔️ Attackers',squads:SQUADS.filter(function(s){return s.type==='attacker'})},
+    {key:'midfielder',name:'🏃 Midfielders',squads:SQUADS.filter(function(s){return s.type==='midfielder'})},
+    {key:'defender',name:'🪞 Defenders',squads:SQUADS.filter(function(s){return s.type==='defender'})},
+  ];
+
+  types.forEach(function(grp){
+    h+='<div style="font-size:10px;font-weight:700;color:var(--text2);margin:12px 0 6px;letter-spacing:.5px">'+grp.name+'</div>';
+    grp.squads.forEach(function(sq){
+      var p=PERSONALITIES[sq.name];
+      if(!p)return;
+      var streak=(streakData[sq.name]||{}).streak||0;
+      var eb=p.emergencyBehavior||'SILENT';
+      var ebColors={SILENT:'#999',GENTLE:'#38A169',CAPTAIN:'#DC2626'};
+      var sn=sq.name;
+      var safeId=sn.replace(/\s/g,'_').replace(/'/g,'');
+
+      h+='<div style="background:var(--card);border-radius:10px;padding:10px;margin-bottom:6px;border:1.5px solid var(--as)">';
+      // Header row
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+      h+='<span style="font-size:16px">'+(p.ico||'⚡')+'</span>';
+      h+='<span style="font-size:12px;font-weight:700;flex:1">'+esc(p.name||sn)+'</span>';
+      if(streak>0)h+='<span style="font-size:9px;background:var(--as);color:var(--accent);padding:1px 6px;border-radius:8px;font-weight:600">🔥 '+streak+'d</span>';
+      h+='<span style="font-size:8px;padding:2px 6px;border-radius:6px;background:'+ebColors[eb]+'22;color:'+ebColors[eb]+';font-weight:700">'+eb+'</span>';
+      h+='</div>';
+
+      // Editable fields (collapsed by default, expand on tap)
+      h+='<div id="brainEdit_'+safeId+'" style="display:none">';
+
+      // Tone
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+      h+='<span style="font-size:9px;color:var(--text2);min-width:50px">Tone</span>';
+      h+='<select class="rule-sel" onchange="PERSONALITIES[\''+sn.replace(/'/g,"\\'")+'\'].tone=this.value;savePersonalityConfig()" style="flex:1">';
+      ['aggressive','neutral','harsh','analytical','creative','curious','professional','warm','nurturing','practical','caring','precise','methodical','organized','gentle','confident','disciplined'].forEach(function(t){
+        h+='<option value="'+t+'" '+(p.tone===t?'selected':'')+'>'+t+'</option>';
+      });
+      h+='</select></div>';
+
+      // Emergency behavior
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+      h+='<span style="font-size:9px;color:var(--text2);min-width:50px">Emergency</span>';
+      h+='<select class="rule-sel" onchange="PERSONALITIES[\''+sn.replace(/'/g,"\\'")+'\'].emergencyBehavior=this.value;savePersonalityConfig()" style="flex:1">';
+      ['SILENT','GENTLE','CAPTAIN'].forEach(function(e){
+        h+='<option value="'+e+'" '+(eb===e?'selected':'')+'>'+e+(e==='SILENT'?' (muted)':e==='GENTLE'?' (soft push)':' (takes over)')+'</option>';
+      });
+      h+='</select></div>';
+
+      // Brief (quick rule-based message)
+      h+='<div style="margin-bottom:6px"><span style="font-size:9px;color:var(--text2)">Default briefing</span>';
+      h+='<textarea style="width:100%;margin-top:2px;border:1px solid var(--as);border-radius:6px;padding:6px;font-size:10px;font-family:DM Sans,sans-serif;color:var(--text);background:var(--bg);resize:vertical;min-height:40px" onchange="PERSONALITIES[\''+sn.replace(/'/g,"\\'")+'\'].brief=this.value;savePersonalityConfig()">'+esc(p.brief||'')+'</textarea></div>';
+
+      // Takeover config
+      var tkv=takeoverConfig[sn];
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+      h+='<span style="font-size:9px;color:var(--text2);min-width:50px">Takeover</span>';
+      if(tkv){
+        h+='<span style="font-size:9px;color:var(--accent);font-weight:600">Active ('+tkv.timerMin+'min, '+(tkv.hardLock?'hard':'soft')+')</span>';
+        h+='<button style="border:none;background:#FEF2F2;color:#DC2626;padding:2px 8px;border-radius:6px;font-size:9px;cursor:pointer;font-family:DM Sans" onclick="delete takeoverConfig[\''+sn.replace(/'/g,"\\'")+'\'];tkvSaveConfig();renderOv()">Remove</button>';
+      }else{
+        h+='<button style="border:none;background:var(--accent);color:white;padding:3px 10px;border-radius:6px;font-size:9px;cursor:pointer;font-family:DM Sans" onclick="takeoverConfig[\''+sn.replace(/'/g,"\\'")+'\']={enabled:true,hardLock:false,timeFrom:10,timeTo:10,days:[\'weekday\',\'weekend\'],loc:[\'home\'],tasks:[{id:\'t1\',text:\'Default task\',ico:\'✅\',done:false}],timerMin:15};tkvSaveConfig();renderOv()">+ Enable</button>';
+      }
+      h+='</div>';
+
+      h+='</div>'; // end edit panel
+
+      // Toggle button
+      h+='<button style="border:none;background:none;font-size:9px;color:var(--accent);cursor:pointer;font-family:DM Sans;padding:2px 0" onclick="var el=document.getElementById(\'brainEdit_'+safeId+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">▸ Edit personality</button>';
+
+      h+='</div>'; // end card
+    });
+  });
+
+  return h;
+}
+
+function renderBrainClash(){
+  var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">Clash Resolution</div>';
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px;line-height:1.5">When two squads both want priority, the higher tier wins. Streak boosts and overrides modify the outcome.</div>';
+
+  // Priority tiers
+  h+='<div style="font-size:10px;font-weight:700;color:var(--text2);margin:8px 0 6px">PRIORITY TIERS (4 = highest)</div>';
+
+  for(var tier=4;tier>=1;tier--){
+    var tierLabels={4:'🔴 Non-negotiable',3:'🟠 Self-care',2:'🔵 Work/Growth',1:'⚪ Maintenance'};
+    h+='<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:700;color:var(--text2);margin-bottom:3px">'+tierLabels[tier]+' (Tier '+tier+')</div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px">';
+    Object.entries(clashPriorities).forEach(function(e){
+      var sn=e[0],t=e[1];
+      if(t!==tier)return;
+      var p=PERSONALITIES[sn];
+      h+='<div style="display:flex;align-items:center;gap:3px;background:var(--card);border:1px solid var(--as);border-radius:6px;padding:3px 8px;font-size:10px">';
+      h+='<span style="font-size:12px">'+(p?p.ico:'⚡')+'</span>';
+      h+='<span>'+esc(sn)+'</span>';
+      // Up/down buttons
+      if(tier<4)h+='<button style="border:none;background:none;font-size:8px;cursor:pointer;padding:0 2px" onclick="clashPriorities[\''+sn.replace(/'/g,"\\'")+'\']='+(tier+1)+';saveClashConfig();renderOv()">▲</button>';
+      if(tier>1)h+='<button style="border:none;background:none;font-size:8px;cursor:pointer;padding:0 2px" onclick="clashPriorities[\''+sn.replace(/'/g,"\\'")+'\']='+(tier-1)+';saveClashConfig();renderOv()">▼</button>';
+      h+='</div>';
+    });
+    h+='</div></div>';
+  }
+
+  // Override rules
+  h+='<div style="font-size:10px;font-weight:700;color:var(--text2);margin:16px 0 6px">OVERRIDE RULES</div>';
+
+  Object.entries(clashRules).forEach(function(e){
+    var key=e[0],rule=e[1];
+    h+='<div style="background:var(--card);border-radius:8px;padding:8px 10px;margin-bottom:6px;border:1px solid var(--as);display:flex;align-items:center;gap:8px">';
+    h+='<button class="ql-lnk-hide-sw '+(rule.enabled?'on':'off')+'" onclick="clashRules.'+key+'.enabled=!clashRules.'+key+'.enabled;saveClashConfig();renderOv()"></button>';
+    h+='<div style="flex:1"><div style="font-size:10px;font-weight:600">'+esc(key.replace(/([A-Z])/g,' $1').trim())+'</div>';
+    h+='<div style="font-size:9px;color:var(--text2)">'+esc(rule.description||'')+'</div></div>';
+    h+='</div>';
+  });
+
+  // Test clash
+  h+='<div style="margin-top:16px;padding:12px;background:var(--card);border-radius:10px;border:1px solid var(--as)">';
+  h+='<div style="font-size:10px;font-weight:700;margin-bottom:6px">⚡ Test Clash</div>';
+  h+='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">';
+  h+='<select id="clashTestA" class="rule-sel">';
+  SQUADS.forEach(function(sq){h+='<option value="'+sq.name+'">'+sq.name+'</option>'});
+  h+='</select><span style="font-size:10px;color:var(--text2)">vs</span>';
+  h+='<select id="clashTestB" class="rule-sel">';
+  SQUADS.forEach(function(sq){h+='<option value="'+sq.name+'" '+(sq.name==='Food'?'selected':'')+'>'+ sq.name+'</option>'});
+  h+='</select>';
+  h+='<button style="border:none;background:var(--accent);color:white;padding:4px 12px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans" onclick="var a=document.getElementById(\'clashTestA\').value,b=document.getElementById(\'clashTestB\').value;var w=resolveClash(a,b);document.getElementById(\'clashResult\').innerHTML=\'Winner: <strong>\'+w+\'</strong> (tier \'+clashPriorities[w]+\')\'">Test</button>';
+  h+='</div>';
+  h+='<div id="clashResult" style="font-size:11px;margin-top:6px;color:var(--accent)"></div>';
+  h+='</div>';
+
+  return h;
+}
+
+function renderBrainStatus(){
+  var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">Brain Status</div>';
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px">Live state of the CC nervous system</div>';
+
+  // Current state
+  h+='<div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:8px;border:1.5px solid var(--as)">';
+  h+='<div style="font-size:9px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:6px">CURRENT STATE</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">';
+  h+='<div>📍 Location: <strong>'+loc+'</strong></div>';
+  h+='<div>📅 Day: <strong>'+dayType()+'</strong></div>';
+  h+='<div>⚽ Possession: <strong>'+possession+'</strong></div>';
+  h+='<div>🆘 Emergency: <strong>'+(emergencyMode?'ON':'OFF')+'</strong></div>';
+  h+='<div>🎯 Takeover: <strong>'+(tkvActive||'None')+'</strong></div>';
+  h+='<div>😊 Mood: <strong>'+mood+'</strong></div>';
+  h+='</div></div>';
+
+  // Active personalities
+  h+='<div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:8px;border:1.5px solid var(--as)">';
+  h+='<div style="font-size:9px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:6px">SQUAD STREAKS</div>';
+  var hasStreaks=false;
+  Object.entries(streakData).forEach(function(e){
+    var sn=e[0],s=e[1];
+    if(!s.streak)return;
+    hasStreaks=true;
+    var p=PERSONALITIES[sn];
+    h+='<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px">';
+    h+='<span style="font-size:14px">'+(p?p.ico:'⚡')+'</span>';
+    h+='<span style="flex:1">'+esc(sn)+'</span>';
+    h+='<span style="font-weight:700;color:var(--accent)">🔥 '+s.streak+' days</span>';
+    h+='</div>';
+  });
+  if(!hasStreaks)h+='<div style="font-size:10px;color:var(--text2)">No active streaks</div>';
+  h+='</div>';
+
+  // Brain modules status
+  h+='<div style="background:var(--card);border-radius:10px;padding:12px;border:1.5px solid var(--as)">';
+  h+='<div style="font-size:9px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:6px">BRAIN MODULES</div>';
+  var modules=[
+    {name:'Client',loaded:typeof CC_BRAIN!=='undefined'},
+    {name:'Triggers',loaded:typeof CC_TRIGGERS!=='undefined'},
+    {name:'Stack Ops',loaded:typeof CC_STACK!=='undefined'},
+    {name:'Scheduler',loaded:typeof CC_SCHEDULER!=='undefined'},
+    {name:'Huddle',loaded:typeof CC_HUDDLE!=='undefined'},
+  ];
+  modules.forEach(function(m){
+    h+='<div style="display:flex;align-items:center;gap:6px;padding:2px 0;font-size:10px">';
+    h+='<span style="color:'+(m.loaded?'#38A169':'#DC2626')+'">●</span>';
+    h+='<span>'+m.name+'</span>';
+    h+='<span style="font-size:9px;color:var(--text2)">'+(m.loaded?'loaded':'not loaded')+'</span>';
+    h+='</div>';
+  });
+  h+='</div>';
+
+  return h;
+}
+
 async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(updateClock,60000);await loadAll();await checkAndReactivate();
+  // Load brain configs (non-blocking)
+  loadClashConfig();loadPersonalityConfig();
   // Load calendar integrations (non-blocking — app renders while these fetch)
   loadHolidays().then(()=>{updateBadge();renderPitch()});
   loadPersonalDaysOff();
