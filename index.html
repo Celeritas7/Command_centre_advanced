@@ -157,7 +157,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ov-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .ov-title{font-family:'Fraunces',serif;font-size:18px;font-weight:700}
 .ov-close{border:none;background:var(--card);width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.1);color:var(--text)}
-.ov-tabs{display:flex;background:var(--card);border-radius:12px;padding:3px;margin-bottom:14px}
+.ov-tabs{display:flex;background:var(--card);border-radius:12px;padding:3px;margin-bottom:14px;overflow-x:auto;gap:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.ov-tabs::-webkit-scrollbar{display:none}
 .ov-tab{flex:1;border:none;background:transparent;padding:8px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .3s;text-align:center}
 .ov-tab.active{background:var(--accent);color:white}
 
@@ -953,7 +953,7 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 <!-- CENTERED OVERLAY -->
 <div class="ov-bg" id="ovBg" onclick="if(event.target===this)closeOv()">
   <div class="ov-panel"><div class="ov-top"><div class="ov-title">Locker Room</div><div class="ov-close" onclick="closeOv()">✕</div></div>
-    <div class="ov-tabs"><button class="ov-tab active" id="ovTabB" onclick="switchOvTab('bench')">📋 Bench</button><button class="ov-tab" id="ovTabR" onclick="switchOvTab('rules')">📏 Rules</button><button class="ov-tab" id="ovTabS" onclick="switchOvTab('settings')">⚙️</button><button class="ov-tab" id="ovTabBr" onclick="switchOvTab('brain')">🧠</button></div>
+    <div class="ov-tabs"><button class="ov-tab active" id="ovTabB" onclick="switchOvTab('bench')">📋 Bench</button><button class="ov-tab" id="ovTabR" onclick="switchOvTab('rules')">📏 Rules</button><button class="ov-tab" id="ovTabS" onclick="switchOvTab('settings')">⚙️</button><button class="ov-tab" id="ovTabBr" onclick="switchOvTab('brain')">🧠</button><button class="ov-tab" id="ovTabTk" onclick="switchOvTab('takeover')">⚡</button><button class="ov-tab" id="ovTabCm" onclick="switchOvTab('commute')">🚃</button></div>
     <div id="ovContent"></div>
   </div>
 </div>
@@ -3637,8 +3637,8 @@ function updateClock(){document.getElementById('timeD').textContent=new Date().t
 // ===== OVERLAY =====
 function openOv(){document.getElementById('ovBg').classList.add('show');renderOv()}
 function closeOv(){document.getElementById('ovBg').classList.remove('show')}
-function switchOvTab(t){ovTab=t;document.getElementById('ovTabB').classList.toggle('active',t==='bench');document.getElementById('ovTabR').classList.toggle('active',t==='rules');document.getElementById('ovTabS').classList.toggle('active',t==='settings');document.getElementById('ovTabBr').classList.toggle('active',t==='brain');renderOv()}
-function renderOv(){document.getElementById('ovContent').innerHTML=ovTab==='bench'?renderBench():ovTab==='settings'?renderSettings():ovTab==='brain'?renderBrain():renderRules()}
+function switchOvTab(t){ovTab=t;['B','R','S','Br','Tk','Cm'].forEach(function(k){document.getElementById('ovTab'+k).classList.toggle('active',t===({B:'bench',R:'rules',S:'settings',Br:'brain',Tk:'takeover',Cm:'commute'}[k]))});renderOv()}
+function renderOv(){var r={bench:renderBench,rules:renderRules,settings:renderSettings,brain:renderBrain,takeover:renderTakeoverTab,commute:renderCommuteTab};document.getElementById('ovContent').innerHTML=(r[ovTab]||renderBench)()}
 
 // ===== BENCH =====
 function renderBench(){
@@ -4210,51 +4210,6 @@ function renderSettings(){
   h+='<div class="sett-add" onclick="ssMessages.push(\'New message\');saveSS();renderOv()">+ Add Message</div>';
   h+='</div>';
 
-  // Commute test section
-  h+='<div class="sett-sec"><div class="sett-sec-hd">&#128643; Commute &amp; GPS</div>';
-  // GPS status
-  h+='<div class="sett-sec-sub">GPS Auto-Location</div>';
-  if(gpsLat){
-    var det=gpsDetectLoc()||'unknown';
-    var nst=gpsNearestStation();
-    var dist=gpsDistToNearestStation();
-    h+='<div style="padding:8px 10px;background:#E8F5E9;border-radius:8px;margin-bottom:8px;font-size:10px;color:#2E7D32;font-weight:600">&#128205; GPS active — '+det+' (&#177;'+gpsAccuracy+'m)<br><span style="font-size:9px;font-weight:500">Nearest: '+(nst==='shimosa'?'下総中山':'流通センター')+' · '+dist+'m</span></div>';
-  } else {
-    h+='<div style="padding:8px 10px;background:#F5F5F5;border-radius:8px;margin-bottom:8px;font-size:10px;color:#999;font-weight:600">&#128205; No GPS data yet</div>';
-  }
-  h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Auto-switch location</span><button class="ql-lnk-hide-sw '+(gpsAutoLoc?'on':'off')+'" onclick="gpsAutoLoc=!gpsAutoLoc;renderOv()" style="position:relative"></button><button style="border:none;background:var(--accent);color:white;padding:5px 12px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:8px" onclick="gpsCheck();setTimeout(renderOv,1500)">&#128225; Check Now</button></div>';
-
-  // Visibility window
-  h+='<div class="sett-sec-sub" style="margin-top:10px">Train Card Visibility</div>';
-  h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Show from</span><input class="sett-ss-inp" type="number" min="0" max="23" value="'+Math.floor(cmteVisFrom/60)+'" id="cmteVisFromH" style="width:44px;font-size:13px">:<input class="sett-ss-inp" type="number" min="0" max="59" value="'+(cmteVisFrom%60)+'" id="cmteVisFromM" style="width:44px;font-size:13px"></div>';
-  h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Show until</span><input class="sett-ss-inp" type="number" min="0" max="23" value="'+Math.floor(cmteVisTo/60)+'" id="cmteVisToH" style="width:44px;font-size:13px">:<input class="sett-ss-inp" type="number" min="0" max="59" value="'+(cmteVisTo%60)+'" id="cmteVisToM" style="width:44px;font-size:13px"></div>';
-  h+='<button style="border:none;background:var(--accent);color:white;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-top:6px" onclick="cmteVisFrom=parseInt(document.getElementById(\'cmteVisFromH\').value)*60+parseInt(document.getElementById(\'cmteVisFromM\').value||0);cmteVisTo=parseInt(document.getElementById(\'cmteVisToH\').value)*60+parseInt(document.getElementById(\'cmteVisToM\').value||0);saveCmteSettings();renderOv();renderPitch()">Save Window</button>';
-  h+='<div style="font-size:8px;color:var(--text2);margin-top:4px">Current: '+String(Math.floor(cmteVisFrom/60)).padStart(2,'0')+':'+String(cmteVisFrom%60).padStart(2,'0')+' — '+String(Math.floor(cmteVisTo/60)).padStart(2,'0')+':'+String(cmteVisTo%60).padStart(2,'0')+'</div>';
-
-  // Test time
-  h+='<div class="sett-sec-sub" style="margin-top:10px">Test Mode</div>';
-  if(cmteTestTime!=null){
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Test time</span><input class="sett-ss-inp" type="number" min="0" max="23" value="'+Math.floor(cmteTestTime/60)+'" id="cmteTestH" style="width:44px;font-size:13px">:<input class="sett-ss-inp" type="number" min="0" max="59" value="'+(cmteTestTime%60)+'" id="cmteTestM" style="width:44px;font-size:13px"><button style="border:none;background:var(--accent);color:white;padding:5px 12px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:6px" onclick="var hh=parseInt(document.getElementById(\'cmteTestH\').value)||0;var mm=parseInt(document.getElementById(\'cmteTestM\').value)||0;cmteTestTime=hh*60+mm;renderOv();renderPitch()">Apply</button><button style="border:none;background:#FFEBEE;color:#C62828;padding:5px 12px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:4px" onclick="cmteTestTime=null;renderOv();renderPitch()">Reset</button></div>';
-    h+='<div style="font-size:10px;color:var(--accent);font-weight:700;margin-top:6px;padding:6px 10px;background:#E8EAF6;border-radius:8px">&#9888; Test time: '+String(Math.floor(cmteTestTime/60)).padStart(2,'0')+':'+String(cmteTestTime%60).padStart(2,'0')+' — train card shows on ALL tabs</div>';
-  } else {
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Using real clock</span><button style="border:none;background:var(--accent);color:white;padding:5px 12px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:6px" onclick="cmteTestTime=510;renderOv()">Enable Test Mode</button></div>';
-  }
-  h+='</div>';
-
-  // AI Personality Engine section
-  h+='<div class="sett-sec"><div class="sett-sec-hd">🤖 AI Personality Engine</div>';
-  h+='<div class="sett-sec-sub">Anthropic API key for AI-powered squad briefings (Executive, Psychology, Exercise)</div>';
-  h+='<div class="sett-ss-row"><span class="sett-ss-lbl">API Key</span><input class="sett-msg-inp" type="password" value="'+(ccApiKey?'••••••••'+ccApiKey.slice(-4):'')+'" placeholder="sk-ant-..." id="settApiKey" style="flex:2;font-size:10px"></div>';
-  h+='<div style="display:flex;gap:6px;margin-top:6px"><button style="border:none;background:var(--accent);color:white;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif" onclick="var v=document.getElementById(\'settApiKey\').value.trim();if(v&&!v.startsWith(\'••\')){ccApiKey=v;memSave(\'cf_api_key\',ccApiKey);renderOv()}">Save Key</button><button style="border:none;background:#FEF2F2;color:#DC2626;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif" onclick="ccApiKey=\'\';memSave(\'cf_api_key\',\'\');renderOv()">Remove</button></div>';
-  h+='<div style="font-size:8px;color:var(--text2);margin-top:6px;line-height:1.5">Your key is stored in Supabase, not shared. Each briefing ≈ 200 tokens (~$0.001). Briefings cache daily — 1 API call per squad per day.</div>';
-  h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:8px">Active personalities:</div>';
-  Object.entries(PERSONALITIES).forEach(function(e){
-    var nm=e[0],p=e[1];
-    var streak=streakData[nm]||{lastDone:null,streak:0};
-    h+='<div style="display:flex;align-items:center;gap:6px;padding:4px 0"><span style="font-size:14px">'+p.ico+'</span><span style="font-size:10px;font-weight:600;flex:1">'+p.name+'</span><span style="font-size:8px;color:var(--text2)">'+p.tone+'</span>'+(streak.streak>0?'<span class="brief-streak" style="background:var(--as);color:var(--accent)">🔥 '+streak.streak+'d</span>':'')+'</div>';
-  });
-  h+='</div>';
-
   // Smart Expense Triggers section
   h+='<div class="sett-sec"><div class="sett-sec-hd">💰 Smart Expense Triggers</div>';
   h+='<div class="sett-sec-sub">Automatic popups that remind you to log expenses. Patterns are learned from your spending history (no API needed).</div>';
@@ -4331,70 +4286,6 @@ function renderSettings(){
     });
     h+='</div>';
   }
-  h+='</div>';
-
-  // Team Takeover section
-  h+='<div class="sett-sec"><div class="sett-sec-hd">🔒 Team Takeovers</div>';
-  h+='<div class="sett-sec-sub">Teams take over the screen at set times. Hard lock = must complete. Soft lock = can skip (streak resets).</div>';
-  Object.entries(takeoverConfig).forEach(function(e){
-    var sqN=e[0],cfg=e[1];
-    var p=PERSONALITIES[sqN]||{ico:'❓',name:sqN};
-    var streak=streakData[sqN]||{lastDone:null,streak:0};
-    var firedKey=sqN+'_'+todayK();
-    var firedToday=!!tkvFiredToday[firedKey];
-    h+='<div style="background:var(--card);border-radius:12px;padding:12px;margin-bottom:8px;border:1.5px solid var(--as)">';
-    // Header row
-    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-    h+='<span style="font-size:18px">'+p.ico+'</span>';
-    h+='<span style="font-size:12px;font-weight:700;flex:1">'+p.name+'</span>';
-    if(streak.streak>0)h+='<span class="brief-streak" style="background:var(--as);color:var(--accent);font-size:8px">🔥 '+streak.streak+'d</span>';
-    if(firedToday)h+='<span style="font-size:8px;padding:2px 6px;border-radius:4px;background:#E6FFED;color:#059669;font-weight:600">✓ Done today</span>';
-    h+='</div>';
-    // Enable toggle
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Enabled</span><button class="ql-lnk-hide-sw '+(cfg.enabled?'on':'off')+'" onclick="takeoverConfig.'+sqN+'.enabled=!takeoverConfig.'+sqN+'.enabled;tkvSaveConfig();renderOv()"></button></div>';
-    // Hard/soft lock
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Lock type</span><button style="border:1.5px solid var(--as);border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:'+(cfg.hardLock?'#DC262622':'var(--card)')+';color:'+(cfg.hardLock?'#DC2626':'var(--text2)')+'" onclick="takeoverConfig.'+sqN+'.hardLock=!takeoverConfig.'+sqN+'.hardLock;tkvSaveConfig();renderOv()">'+(cfg.hardLock?'🔴 Hard Lock':'🟡 Soft Lock')+'</button></div>';
-    // Time
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Trigger at</span><select class="rule-sel" id="tkv_time_'+sqN+'" onchange="takeoverConfig.'+sqN+'.timeFrom=parseInt(this.value);tkvSaveConfig()">';
-    for(var hh=5;hh<=23;hh++){h+='<option value="'+hh+'" '+(cfg.timeFrom===hh?'selected':'')+'>'+String(hh).padStart(2,'0')+':00</option>'}
-    h+='</select></div>';
-    // Timer minutes
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Min. timer</span><input class="sett-ss-inp" type="number" min="0" max="60" value="'+(cfg.timerMin||0)+'" onchange="takeoverConfig.'+sqN+'.timerMin=parseInt(this.value)||0;tkvSaveConfig()"><span style="font-size:9px;color:var(--text2)">min</span></div>';
-    // Days
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Days</span><div style="display:flex;gap:4px">';
-    ['weekday','weekend'].forEach(function(d){
-      var on=cfg.days&&cfg.days.includes(d);
-      h+='<button style="border:1.5px solid var(--as);border-radius:6px;padding:3px 8px;font-size:9px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:'+(on?'var(--accent)':'var(--card)')+';color:'+(on?'white':'var(--text2)')+'" onclick="var d=takeoverConfig.'+sqN+'.days||[];var i=d.indexOf(\''+d+'\');if(i>=0)d.splice(i,1);else d.push(\''+d+'\');takeoverConfig.'+sqN+'.days=d;tkvSaveConfig();renderOv()">'+d+'</button>';
-    });
-    h+='</div></div>';
-    // Locations
-    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Locations</span><div style="display:flex;gap:4px">';
-    ['home','office','outside'].forEach(function(l){
-      var ico={home:'🏠',office:'🏢',outside:'🌳'}[l];
-      var on=cfg.loc&&cfg.loc.includes(l);
-      h+='<button style="border:1.5px solid var(--as);border-radius:6px;padding:3px 8px;font-size:9px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:'+(on?'var(--accent)':'var(--card)')+';color:'+(on?'white':'var(--text2)')+'" onclick="var a=takeoverConfig.'+sqN+'.loc||[];var i=a.indexOf(\''+l+'\');if(i>=0)a.splice(i,1);else a.push(\''+l+'\');takeoverConfig.'+sqN+'.loc=a;tkvSaveConfig();renderOv()">'+ico+'</button>';
-    });
-    h+='</div></div>';
-    // Tasks editor
-    h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:6px;margin-bottom:4px">Checklist tasks:</div>';
-    (cfg.tasks||[]).forEach(function(t,i){
-      h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input style="width:24px;border:1px solid var(--as);border-radius:4px;padding:2px;font-size:12px;text-align:center;outline:none" value="'+esc(t.ico)+'" onchange="takeoverConfig.'+sqN+'.tasks['+i+'].ico=this.value;tkvSaveConfig()"><input style="flex:1;border:1px solid var(--as);border-radius:4px;padding:4px 6px;font-size:10px;font-family:DM Sans,sans-serif;outline:none" value="'+esc(t.text)+'" onchange="takeoverConfig.'+sqN+'.tasks['+i+'].text=this.value;tkvSaveConfig()"><button style="border:none;background:none;font-size:9px;cursor:pointer;color:#DC2626;opacity:.5" onclick="takeoverConfig.'+sqN+'.tasks.splice('+i+',1);tkvSaveConfig();renderOv()">✕</button></div>';
-    });
-    h+='<div style="border:1px dashed var(--as);border-radius:6px;padding:5px;text-align:center;font-size:9px;color:var(--text2);cursor:pointer;margin-top:4px" onclick="takeoverConfig.'+sqN+'.tasks.push({id:\'tx\'+Date.now(),text:\'New task\',ico:\'📋\',done:false});tkvSaveConfig();renderOv()">+ Add task</div>';
-    // Test button
-    h+='<button style="border:none;background:var(--accent);color:white;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-top:8px;width:100%" onclick="closeOv();tkvTrigger(\''+sqN+'\')">⚡ Test Takeover Now</button>';
-    h+='</div>';
-  });
-  // Add new takeover button
-  h+='<div style="margin-top:8px"><div style="font-size:9px;color:var(--text2);margin-bottom:4px">Add takeover for another personality:</div>';
-  h+='<div style="display:flex;gap:4px;flex-wrap:wrap">';
-  Object.entries(PERSONALITIES).forEach(function(e){
-    var nm=e[0];
-    if(takeoverConfig[nm])return; // already configured
-    var p=e[1];
-    h+='<button style="border:1.5px solid var(--as);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;background:var(--card);color:var(--text)" onclick="takeoverConfig.'+nm+'={enabled:true,hardLock:false,timeFrom:9,timeTo:9,days:[\'weekday\'],loc:[\'home\'],tasks:[{id:\'tx\'+Date.now(),text:\'Complete one task\',ico:\'📋\',done:false}],timerMin:10};tkvSaveConfig();renderOv()">+ '+p.ico+' '+p.name+'</button>';
-  });
-  h+='</div></div>';
   h+='</div>';
 
   return h;
@@ -4639,6 +4530,14 @@ function renderBrainPersonalities(){
   var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">Squad Personalities</div>';
   h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px;line-height:1.5">Each squad has a personality that drives briefings, takeover behavior, and emergency response. Tap to edit.</div>';
 
+  // API Key (moved from Settings)
+  h+='<div style="background:var(--card);border-radius:10px;padding:10px;margin-bottom:12px;border:1.5px solid var(--as)">';
+  h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:12px">🤖</span><span style="font-size:11px;font-weight:700">AI Briefing Key</span><span style="font-size:8px;color:'+(ccApiKey?'#059669':'var(--text2)')+';font-weight:600">'+(ccApiKey?'● Active':'○ Not set')+'</span></div>';
+  h+='<div style="display:flex;gap:6px;align-items:center"><input class="sett-msg-inp" type="password" value="'+(ccApiKey?'••••••••'+ccApiKey.slice(-4):'')+'" placeholder="sk-ant-..." id="settApiKey" style="flex:1;font-size:10px">';
+  h+='<button style="border:none;background:var(--accent);color:white;padding:5px 10px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;font-family:DM Sans" onclick="var v=document.getElementById(\'settApiKey\').value.trim();if(v&&!v.startsWith(\'••\')){ccApiKey=v;memSave(\'cf_api_key\',ccApiKey);renderOv()}">Save</button>';
+  if(ccApiKey)h+='<button style="border:none;background:#FEF2F2;color:#DC2626;padding:5px 8px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;font-family:DM Sans" onclick="ccApiKey=\'\';memSave(\'cf_api_key\',\'\');renderOv()">✕</button>';
+  h+='</div></div>';
+
   // Group by player type
   var types=[
     {key:'attacker',name:'⚔️ Attackers',squads:SQUADS.filter(function(s){return s.type==='attacker'})},
@@ -4824,6 +4723,72 @@ function renderBrainStatus(){
   });
   h+='</div>';
 
+  return h;
+}
+
+// ===== COMMUTE TAB =====
+function renderCommuteTab(){
+  var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">🚃 Commute & GPS</div>';
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px">GPS location, train card visibility, and test mode</div>';
+  h+='<div class="sett-sec"><div class="sett-sec-hd">📍 GPS Auto-Location</div>';
+  if(gpsLat){
+    var det=gpsDetectLoc()||'unknown';var nst=gpsNearestStation();var dist=gpsDistToNearestStation();
+    h+='<div style="padding:8px 10px;background:#E8F5E9;border-radius:8px;margin-bottom:8px;font-size:10px;color:#2E7D32;font-weight:600">📍 GPS active — '+det+' (±'+gpsAccuracy+'m)<br><span style="font-size:9px;font-weight:500">Nearest: '+(nst==='shimosa'?'下総中山':'流通センター')+' · '+dist+'m</span></div>';
+  } else {
+    h+='<div style="padding:8px 10px;background:#F5F5F5;border-radius:8px;margin-bottom:8px;font-size:10px;color:#999;font-weight:600">📍 No GPS data yet</div>';
+  }
+  h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Auto-switch location</span><button class="ql-lnk-hide-sw '+(gpsAutoLoc?'on':'off')+'" onclick="gpsAutoLoc=!gpsAutoLoc;renderOv()" style="position:relative"></button><button style="border:none;background:var(--accent);color:white;padding:5px 12px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:8px" onclick="gpsCheck();setTimeout(renderOv,1500)">📡 Check Now</button></div></div>';
+  h+='<div class="sett-sec"><div class="sett-sec-hd">🚃 Train Card Visibility</div>';
+  h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Show from</span><input class="sett-ss-inp" type="number" min="0" max="23" value="'+Math.floor(cmteVisFrom/60)+'" id="cmteVisFromH" style="width:44px;font-size:13px">:<input class="sett-ss-inp" type="number" min="0" max="59" value="'+(cmteVisFrom%60)+'" id="cmteVisFromM" style="width:44px;font-size:13px"></div>';
+  h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Show until</span><input class="sett-ss-inp" type="number" min="0" max="23" value="'+Math.floor(cmteVisTo/60)+'" id="cmteVisToH" style="width:44px;font-size:13px">:<input class="sett-ss-inp" type="number" min="0" max="59" value="'+(cmteVisTo%60)+'" id="cmteVisToM" style="width:44px;font-size:13px"></div>';
+  h+='<button style="border:none;background:var(--accent);color:white;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-top:6px" onclick="cmteVisFrom=parseInt(document.getElementById(\'cmteVisFromH\').value)*60+parseInt(document.getElementById(\'cmteVisFromM\').value||0);cmteVisTo=parseInt(document.getElementById(\'cmteVisToH\').value)*60+parseInt(document.getElementById(\'cmteVisToM\').value||0);saveCmteSettings();renderOv();renderPitch()">Save Window</button>';
+  h+='<div style="font-size:8px;color:var(--text2);margin-top:4px">Current: '+String(Math.floor(cmteVisFrom/60)).padStart(2,'0')+':'+String(cmteVisFrom%60).padStart(2,'0')+' — '+String(Math.floor(cmteVisTo/60)).padStart(2,'0')+':'+String(cmteVisTo%60).padStart(2,'0')+'</div></div>';
+  h+='<div class="sett-sec"><div class="sett-sec-hd">🧪 Test Mode</div>';
+  if(cmteTestTime!=null){
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Test time</span><input class="sett-ss-inp" type="number" min="0" max="23" value="'+Math.floor(cmteTestTime/60)+'" id="cmteTestH" style="width:44px;font-size:13px">:<input class="sett-ss-inp" type="number" min="0" max="59" value="'+(cmteTestTime%60)+'" id="cmteTestM" style="width:44px;font-size:13px"><button style="border:none;background:var(--accent);color:white;padding:5px 12px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:6px" onclick="var hh=parseInt(document.getElementById(\'cmteTestH\').value)||0;var mm=parseInt(document.getElementById(\'cmteTestM\').value)||0;cmteTestTime=hh*60+mm;renderOv();renderPitch()">Apply</button><button style="border:none;background:#FFEBEE;color:#C62828;padding:5px 12px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:4px" onclick="cmteTestTime=null;renderOv();renderPitch()">Reset</button></div>';
+    h+='<div style="font-size:10px;color:var(--accent);font-weight:700;margin-top:6px;padding:6px 10px;background:#E8EAF6;border-radius:8px">⚠ Test: '+String(Math.floor(cmteTestTime/60)).padStart(2,'0')+':'+String(cmteTestTime%60).padStart(2,'0')+'</div>';
+  } else {
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Using real clock</span><button style="border:none;background:var(--accent);color:white;padding:5px 12px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-left:6px" onclick="cmteTestTime=510;renderOv()">Enable Test Mode</button></div>';
+  }
+  h+='</div>';
+  return h;
+}
+
+// ===== TAKEOVER TAB =====
+function renderTakeoverTab(){
+  var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">⚡ Team Takeovers</div>';
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px;line-height:1.5">Teams take over the screen at set times. Hard lock = must complete. Soft lock = can skip (streak resets).</div>';
+  Object.entries(takeoverConfig).forEach(function(e){
+    var sqN=e[0],cfg=e[1],p=PERSONALITIES[sqN]||{ico:'❓',name:sqN};
+    var streak=streakData[sqN]||{lastDone:null,streak:0};
+    var firedToday=!!tkvFiredToday[sqN+'_'+todayK()];
+    var sSqN=sqN.replace(/'/g,"\\'");
+    h+='<div style="background:var(--card);border-radius:12px;padding:12px;margin-bottom:8px;border:1.5px solid var(--as)">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:18px">'+p.ico+'</span><span style="font-size:12px;font-weight:700;flex:1">'+p.name+'</span>';
+    if(streak.streak>0)h+='<span class="brief-streak" style="background:var(--as);color:var(--accent);font-size:8px">🔥 '+streak.streak+'d</span>';
+    if(firedToday)h+='<span style="font-size:8px;padding:2px 6px;border-radius:4px;background:#E6FFED;color:#059669;font-weight:600">✓ Done</span>';
+    h+='</div>';
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Enabled</span><button class="ql-lnk-hide-sw '+(cfg.enabled?'on':'off')+'" onclick="takeoverConfig[\''+sSqN+'\'].enabled=!takeoverConfig[\''+sSqN+'\'].enabled;tkvSaveConfig();renderOv()"></button></div>';
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Lock type</span><button style="border:1.5px solid var(--as);border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:'+(cfg.hardLock?'#DC262622':'var(--card)')+';color:'+(cfg.hardLock?'#DC2626':'var(--text2)')+'" onclick="takeoverConfig[\''+sSqN+'\'].hardLock=!takeoverConfig[\''+sSqN+'\'].hardLock;tkvSaveConfig();renderOv()">'+(cfg.hardLock?'🔴 Hard Lock':'🟡 Soft Lock')+'</button></div>';
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Trigger at</span><select class="rule-sel" onchange="takeoverConfig[\''+sSqN+'\'].timeFrom=parseInt(this.value);tkvSaveConfig()">';
+    for(var hh=5;hh<=23;hh++)h+='<option value="'+hh+'" '+(cfg.timeFrom===hh?'selected':'')+'>'+String(hh).padStart(2,'0')+':00</option>';
+    h+='</select></div>';
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Min. timer</span><input class="sett-ss-inp" type="number" min="0" max="60" value="'+(cfg.timerMin||0)+'" onchange="takeoverConfig[\''+sSqN+'\'].timerMin=parseInt(this.value)||0;tkvSaveConfig()"><span style="font-size:9px;color:var(--text2)">min</span></div>';
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Days</span><div style="display:flex;gap:4px">';
+    ['weekday','weekend'].forEach(function(d){var on=cfg.days&&cfg.days.includes(d);h+='<button style="border:1.5px solid var(--as);border-radius:6px;padding:3px 8px;font-size:9px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:'+(on?'var(--accent)':'var(--card)')+';color:'+(on?'white':'var(--text2)')+'" onclick="var d=takeoverConfig[\''+sSqN+'\'].days||[];var i=d.indexOf(\''+d+'\');if(i>=0)d.splice(i,1);else d.push(\''+d+'\');takeoverConfig[\''+sSqN+'\'].days=d;tkvSaveConfig();renderOv()">'+d+'</button>'});
+    h+='</div></div>';
+    h+='<div class="sett-ss-row"><span class="sett-ss-lbl">Locations</span><div style="display:flex;gap:4px">';
+    ['home','office','outside'].forEach(function(l){var ico={home:'🏠',office:'🏢',outside:'🌳'}[l];var on=cfg.loc&&cfg.loc.includes(l);h+='<button style="border:1.5px solid var(--as);border-radius:6px;padding:3px 8px;font-size:9px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:'+(on?'var(--accent)':'var(--card)')+';color:'+(on?'white':'var(--text2)')+'" onclick="var a=takeoverConfig[\''+sSqN+'\'].loc||[];var i=a.indexOf(\''+l+'\');if(i>=0)a.splice(i,1);else a.push(\''+l+'\');takeoverConfig[\''+sSqN+'\'].loc=a;tkvSaveConfig();renderOv()">'+ico+'</button>'});
+    h+='</div></div>';
+    h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:6px;margin-bottom:4px">Checklist tasks:</div>';
+    (cfg.tasks||[]).forEach(function(t,i){h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input style="width:24px;border:1px solid var(--as);border-radius:4px;padding:2px;font-size:12px;text-align:center;outline:none" value="'+esc(t.ico)+'" onchange="takeoverConfig[\''+sSqN+'\'].tasks['+i+'].ico=this.value;tkvSaveConfig()"><input style="flex:1;border:1px solid var(--as);border-radius:4px;padding:4px 6px;font-size:10px;font-family:DM Sans,sans-serif;outline:none" value="'+esc(t.text)+'" onchange="takeoverConfig[\''+sSqN+'\'].tasks['+i+'].text=this.value;tkvSaveConfig()"><button style="border:none;background:none;font-size:9px;cursor:pointer;color:#DC2626;opacity:.5" onclick="takeoverConfig[\''+sSqN+'\'].tasks.splice('+i+',1);tkvSaveConfig();renderOv()">✕</button></div>'});
+    h+='<div style="border:1px dashed var(--as);border-radius:6px;padding:5px;text-align:center;font-size:9px;color:var(--text2);cursor:pointer;margin-top:4px" onclick="takeoverConfig[\''+sSqN+'\'].tasks.push({id:\'tx\'+Date.now(),text:\'New task\',ico:\'📋\',done:false});tkvSaveConfig();renderOv()">+ Add task</div>';
+    h+='<button style="border:none;background:var(--accent);color:white;padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-top:8px;width:100%" onclick="closeOv();tkvTrigger(\''+sSqN+'\')">⚡ Test Takeover Now</button>';
+    h+='</div>';
+  });
+  h+='<div style="margin-top:8px"><div style="font-size:9px;color:var(--text2);margin-bottom:4px">Add takeover for another squad:</div><div style="display:flex;gap:4px;flex-wrap:wrap">';
+  Object.entries(PERSONALITIES).forEach(function(e){var nm=e[0];if(takeoverConfig[nm])return;var p=e[1];h+='<button style="border:1.5px solid var(--as);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;background:var(--card);color:var(--text)" onclick="takeoverConfig[\''+nm.replace(/'/g,"\\'")+'\']='+JSON.stringify({enabled:true,hardLock:false,timeFrom:9,timeTo:9,days:['weekday'],loc:['home'],tasks:[{id:'tx1',text:'Complete one task',ico:'📋',done:false}],timerMin:10})+';tkvSaveConfig();renderOv()">+ '+p.ico+' '+p.name+'</button>'});
+  h+='</div></div>';
   return h;
 }
 
