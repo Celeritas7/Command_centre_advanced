@@ -4871,15 +4871,33 @@ let bgTickerInt=null;
 
 function bgTimerStart(taskId,taskName,totalSec,label,ico){
   // Remove existing timer for same task
-  bgTimers=bgTimers.filter(t=>t.taskId!==taskId);
-  bgTimers.push({
+  bgTimers=bgTimers.filter(t=>{if(t.taskId===taskId&&t._bgTimeout)clearTimeout(t._bgTimeout);return t.taskId!==taskId});
+  var timer={
     id:'bgt_'+Date.now(),taskId,taskName,label:label||taskName,
     totalSec,remainSec:totalSec,startedAt:Date.now(),ico:ico||'⏱️'
-  });
+  };
+  // Background fallback: schedule notification via setTimeout (survives throttled setInterval)
+  timer._bgTimeout=setTimeout(function(){
+    if(timer.fired)return; // already handled by tick
+    timer.remainSec=0;timer.fired=true;
+    bgTimerAlert(timer);
+    if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
+    try{
+      var ac=new(window.AudioContext||window.webkitAudioContext)();
+      var osc=ac.createOscillator();osc.type='sine';osc.frequency.value=880;
+      osc.connect(ac.destination);osc.start();osc.stop(ac.currentTime+0.3);
+    }catch(e){}
+    bgTimerRenderStrip();
+  },totalSec*1000);
+  bgTimers.push(timer);
   if(!bgTickerInt)bgTickerInt=setInterval(bgTimerTick,1000);
   bgTimerRenderStrip();
   // Vibrate on start
   if(navigator.vibrate)navigator.vibrate(100);
+  // Request notification permission on first timer
+  if('Notification' in window&&Notification.permission==='default'){
+    Notification.requestPermission();
+  }
 }
 
 function bgTimerTick(){
@@ -4919,16 +4937,33 @@ function bgTimerAlert(t){
     '<div class="bg-timer-alert-msg">'+esc(t.taskName)+'<br>Timer: '+formatBgTime(t.totalSec)+' completed</div>'+
     '<button class="bg-timer-alert-btn" onclick="bgTimerDismissAlert(\''+t.id+'\')">Got it ✓</button>'+
   '</div></div>';
+  // System notification (works when tab is backgrounded or phone locked)
+  if('Notification' in window&&Notification.permission==='granted'){
+    try{
+      var n=new Notification(t.ico+' '+t.label+' — Timer done!',{
+        body:t.taskName+' · '+formatBgTime(t.totalSec)+' completed',
+        icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text y="50" font-size="50">'+encodeURIComponent(t.ico)+'</text></svg>',
+        tag:'cc-timer-'+t.id,
+        requireInteraction:true,
+        vibrate:[200,100,200,100,400]
+      });
+      n.onclick=function(){window.focus();bgTimerDismissAlert(t.id);n.close()};
+      // Auto-close after 30s if not tapped
+      setTimeout(function(){n.close()},30000);
+    }catch(e){}
+  }
 }
 
 function bgTimerDismissAlert(id){
   document.getElementById('bgTimerAlert').style.display='none';
   document.getElementById('bgTimerAlert').innerHTML='';
+  bgTimers.forEach(function(t){if(t.id===id&&t._bgTimeout)clearTimeout(t._bgTimeout)});
   bgTimers=bgTimers.filter(function(t){return t.id!==id});
   bgTimerRenderStrip();
 }
 
 function bgTimerCancel(id){
+  bgTimers.forEach(function(t){if(t.id===id&&t._bgTimeout)clearTimeout(t._bgTimeout)});
   bgTimers=bgTimers.filter(function(t){return t.id!==id});
   bgTimerRenderStrip();
 }
