@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CC Rule Designer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>⚡</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d0d;--card:#161616;--card2:#1c1c1c;--amber:#d48900;--amber2:#b37300;--amberBg:rgba(212,137,0,.08);--amberBd:rgba(212,137,0,.15);--text:#e8e0d4;--text2:#888;--text3:#555;--red:#e24b4a;--green:#38a169;--blue:#4a9eff;--purple:#7f77dd;--teal:#1d9e75}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{max-width:900px;margin:0 auto;padding:20px}
+
+/* Header */
+.hdr{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--amberBd)}
+.hdr-ico{font-size:28px}
+.hdr-title{font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:var(--amber)}
+.hdr-sub{font-size:11px;color:var(--text2)}
+.hdr-back{text-decoration:none;color:var(--amber);font-size:11px;margin-left:auto;border:1px solid var(--amberBd);padding:4px 12px;border-radius:6px}
+
+/* Tab bar */
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--card);border-radius:10px;padding:3px}
+.tab{flex:1;text-align:center;padding:8px 6px;font-size:11px;font-weight:600;border-radius:8px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .2s}
+.tab.active{background:var(--amber);color:var(--bg)}
+.tab:hover:not(.active){color:var(--text)}
+
+/* Timeline */
+.tl-wrap{position:relative;overflow-x:auto;margin-bottom:20px;border:1px solid var(--amberBd);border-radius:12px;background:var(--card)}
+.tl-header{display:flex;position:sticky;top:0;background:var(--card);z-index:2;border-bottom:1px solid var(--amberBd)}
+.tl-label-col{min-width:120px;padding:8px 10px;font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.5px}
+.tl-hours{display:flex;flex:1}
+.tl-hour{min-width:50px;flex:1;text-align:center;font-size:9px;color:var(--text3);padding:6px 0;font-family:'JetBrains Mono',monospace;border-left:1px solid rgba(255,255,255,.03)}
+.tl-hour.now{color:var(--amber);font-weight:700}
+
+.tl-row{display:flex;min-height:36px;border-bottom:1px solid rgba(255,255,255,.03)}
+.tl-row:last-child{border-bottom:none}
+.tl-row-label{min-width:120px;display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:11px;font-weight:600;border-right:1px solid rgba(255,255,255,.05)}
+.tl-row-label .ico{font-size:14px}
+.tl-row-label .type{font-size:8px;padding:1px 5px;border-radius:4px;font-weight:700;letter-spacing:.3px}
+.tl-row-label .type.atk{background:#e2722a22;color:#e2722a}
+.tl-row-label .type.mid{background:#3b82f622;color:#3b82f6}
+.tl-row-label .type.def{background:#a855f722;color:#a855f7}
+.tl-track{flex:1;position:relative;min-height:36px}
+.tl-bar{position:absolute;top:4px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;transition:opacity .15s;min-width:20px}
+.tl-bar:hover{opacity:.85}
+.tl-bar.atk{background:rgba(226,114,42,.35);border:1px solid rgba(226,114,42,.5);color:#e8a060}
+.tl-bar.mid{background:rgba(59,130,246,.25);border:1px solid rgba(59,130,246,.4);color:#7ab0f5}
+.tl-bar.def{background:rgba(168,85,247,.25);border:1px solid rgba(168,85,247,.4);color:#b890f0}
+.tl-bar.disabled{opacity:.25}
+.tl-now-line{position:absolute;top:0;bottom:0;width:2px;background:var(--amber);z-index:1;pointer-events:none}
+
+/* Clash panel */
+.clash-list{display:flex;flex-direction:column;gap:6px}
+.clash-item{background:var(--card);border:1px solid var(--amberBd);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px}
+.clash-item.conflict{border-color:var(--red);background:rgba(226,75,74,.05)}
+.clash-vs{font-size:10px;color:var(--text3);font-weight:700}
+.clash-badge{font-size:10px;padding:3px 8px;border-radius:6px;font-weight:700}
+.clash-badge.winner{background:rgba(56,161,105,.15);color:var(--green)}
+.clash-badge.loser{background:rgba(226,75,74,.1);color:var(--red)}
+.clash-reason{font-size:9px;color:var(--text2);margin-top:4px}
+
+/* Squad editor cards */
+.sq-card{background:var(--card);border:1px solid var(--amberBd);border-radius:12px;padding:14px;margin-bottom:8px;transition:border-color .2s}
+.sq-card:hover{border-color:var(--amber)}
+.sq-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sq-ico{font-size:20px}
+.sq-name{font-size:13px;font-weight:700;flex:1}
+.sq-tone{font-size:9px;color:var(--text2);background:var(--card2);padding:2px 8px;border-radius:4px}
+.sq-streak{font-size:9px;color:var(--amber);font-weight:600}
+.sq-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sq-label{font-size:10px;color:var(--text2);min-width:70px}
+.sq-sel{background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:4px 8px;font-size:10px;color:var(--text);font-family:inherit;outline:none;cursor:pointer}
+.sq-inp{background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:4px 8px;font-size:10px;color:var(--text);font-family:inherit;outline:none;width:50px}
+.sq-toggle{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;border:1px solid var(--amberBd);background:var(--card2);color:var(--text2);font-family:inherit}
+.sq-toggle.on{background:var(--amber);color:var(--bg);border-color:var(--amber)}
+.sq-btn{border:none;padding:5px 12px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit}
+.sq-btn-primary{background:var(--amber);color:var(--bg)}
+.sq-btn-danger{background:rgba(226,75,74,.1);color:var(--red)}
+.sq-btn-ghost{background:none;color:var(--amber);border:1px dashed var(--amberBd)}
+
+/* Priority tiers */
+.tier{margin-bottom:12px}
+.tier-hdr{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.tier-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px}
+.tier-4 .tier-badge{background:rgba(226,75,74,.15);color:var(--red)}
+.tier-3 .tier-badge{background:rgba(212,137,0,.15);color:var(--amber)}
+.tier-2 .tier-badge{background:rgba(74,158,255,.15);color:var(--blue)}
+.tier-1 .tier-badge{background:rgba(85,85,85,.2);color:var(--text2)}
+.tier-chips{display:flex;flex-wrap:wrap;gap:4px}
+.tier-chip{display:flex;align-items:center;gap:4px;background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:4px 8px;font-size:10px;cursor:grab}
+.tier-chip .chip-btns{display:flex;gap:2px;margin-left:4px}
+.tier-chip button{border:none;background:none;color:var(--text3);cursor:pointer;font-size:9px;padding:0 2px;font-family:inherit}
+.tier-chip button:hover{color:var(--amber)}
+
+/* Status bar */
+.status{display:flex;gap:12px;align-items:center;padding:8px 12px;background:var(--amberBg);border:1px solid var(--amberBd);border-radius:8px;margin-bottom:16px;font-size:10px;color:var(--text2)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.status-dot.off{background:var(--red)}
+
+/* No data */
+.empty{text-align:center;padding:40px;color:var(--text3);font-size:12px}
+
+/* Responsive */
+@media(max-width:600px){
+  .app{padding:12px}
+  .tl-label-col,.tl-row-label{min-width:80px;font-size:9px}
+  .tl-hour{min-width:35px;font-size:7px}
+  .sq-card{padding:10px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div class="hdr-ico">⚡</div>
+    <div>
+      <div class="hdr-title">Rule Designer</div>
+      <div class="hdr-sub">Visual takeover planner for Command Centre</div>
+    </div>
+    <a href="index.html" class="hdr-back">← CC App</a>
+  </div>
+
+  <div id="statusBar" class="status">
+    <div class="status-dot off" id="statusDot"></div>
+    <span id="statusText">Connecting to Supabase...</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('timeline')">📊 Timeline</button>
+    <button class="tab" onclick="switchTab('squads')">👤 Squads</button>
+    <button class="tab" onclick="switchTab('clashes')">⚔️ Clashes</button>
+    <button class="tab" onclick="switchTab('tiers')">🏆 Tiers</button>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const SB_URL='https://wylxvmkcrexwfpjpbhyy.supabase.co';
+const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
+const sb=window.supabase.createClient(SB_URL,SB_ANON);
+
+// ===== DATA =====
+const SQUADS=[
+  {name:'App Gen',type:'attacker',ico:'💻',locs:['home']},
+  {name:'Quick Study',type:'attacker',ico:'📖',locs:['home','outside']},
+  {name:'AI Study',type:'attacker',ico:'🤖',locs:['home']},
+  {name:'Executive',type:'attacker',ico:'🎯',locs:['outside']},
+  {name:'Manager Tasks',type:'attacker',ico:'📨',locs:['office']},
+  {name:'Reminders',type:'attacker',ico:'⏰',locs:['office']},
+  {name:'People Tasks',type:'attacker',ico:'👥',locs:['office']},
+  {name:'Food',type:'midfielder',ico:'🍳',locs:['home','outside']},
+  {name:'Cost',type:'midfielder',ico:'💰',locs:['home','outside']},
+  {name:'Weather',type:'midfielder',ico:'⛅',locs:['outside']},
+  {name:'Health',type:'midfielder',ico:'💊',locs:['home','outside']},
+  {name:'Exercise',type:'midfielder',ico:'💪',locs:['home']},
+  {name:'Eagle Eye',type:'midfielder',ico:'🦅',locs:['office']},
+  {name:'Ghost Tracker',type:'midfielder',ico:'👻',locs:['office']},
+  {name:'Part Inventory',type:'midfielder',ico:'🔩',locs:['office']},
+  {name:'Sleep',type:'defender',ico:'😴',locs:['home']},
+  {name:'Psychology',type:'defender',ico:'🧠',locs:['office','outside']},
+  {name:'Fashion',type:'defender',ico:'👔',locs:['home','outside']},
+  {name:'Cleaning',type:'defender',ico:'🧹',locs:['home']},
+];
+
+let takeoverConfig={};
+let clashPriorities={
+  Health:4,Sleep:4,
+  Food:3,Exercise:3,Cleaning:3,
+  'Manager Tasks':2,Reminders:2,'People Tasks':2,Executive:2,'App Gen':2,'Quick Study':2,'AI Study':2,
+  Cost:1,Weather:1,Fashion:1,Psychology:1,'Eagle Eye':1,'Ghost Tracker':1,'Part Inventory':1,
+};
+let clashRules={
+  weekendShieldsUp:{enabled:true,beforeHour:13,description:'Defenders/Mid before Attackers until 1 PM'},
+  creditEmergency:{enabled:true,threshold:10,description:'Force squad if credits below threshold'},
+  streakProtection:{enabled:true,description:'Squad with 3+ day streak gets +1 tier boost'},
+  moodOverride:{enabled:true,description:'Emergency → Health/Psychology become captains'},
+};
+let streakData={};
+let currentTab='timeline';
+let connected=false;
+
+// ===== INIT =====
+async function init(){
+  try{
+    // Load takeover config from chat_memory
+    const{data:mem}=await sb.from('mind_map_app_chat_memory').select('key,value').in('key',['cf_takeover_cfg','cf_streaks']);
+    (mem||[]).forEach(m=>{
+      if(m.key==='cf_takeover_cfg')try{takeoverConfig=JSON.parse(m.value)}catch{}
+      if(m.key==='cf_streaks')try{streakData=JSON.parse(m.value)}catch{}
+    });
+
+    // Load clash config from brain settings
+    const{data:bs}=await sb.from('command_centre_brain_settings').select('value').eq('key','clash_config').single();
+    if(bs&&bs.value){
+      if(bs.value.priorities)clashPriorities=bs.value.priorities;
+      if(bs.value.rules)clashRules=bs.value.rules;
+    }
+
+    connected=true;
+    document.getElementById('statusDot').className='status-dot';
+    document.getElementById('statusText').textContent='Connected — '+Object.keys(takeoverConfig).length+' takeovers configured, '+SQUADS.length+' squads';
+  }catch(e){
+    document.getElementById('statusText').textContent='Connection failed: '+e.message;
+  }
+  render();
+}
+
+// ===== SAVE =====
+async function saveTakeover(){
+  await sb.from('mind_map_app_chat_memory').upsert({key:'cf_takeover_cfg',value:JSON.stringify(takeoverConfig)},{onConflict:'key'});
+}
+async function saveClash(){
+  await sb.from('command_centre_brain_settings').upsert({key:'clash_config',value:{priorities:clashPriorities,rules:clashRules}},{onConflict:'key'});
+}
+
+// ===== TABS =====
+function switchTab(t){
+  currentTab=t;
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',['timeline','squads','clashes','tiers'][i]===t);
+  });
+  render();
+}
+
+function render(){
+  const c=document.getElementById('content');
+  if(currentTab==='timeline')c.innerHTML=renderTimeline();
+  else if(currentTab==='squads')c.innerHTML=renderSquads();
+  else if(currentTab==='clashes')c.innerHTML=renderClashes();
+  else c.innerHTML=renderTiers();
+}
+
+// ===== TIMELINE =====
+function renderTimeline(){
+  const nowH=new Date().getHours();
+  const nowM=new Date().getMinutes();
+  const nowPct=((nowH*60+nowM)/(24*60))*100;
+
+  let h='<div class="tl-wrap"><div class="tl-header"><div class="tl-label-col">SQUAD</div><div class="tl-hours">';
+  for(let i=5;i<=23;i++){
+    h+='<div class="tl-hour'+(i===nowH?' now':'')+'">'+String(i).padStart(2,'0')+'</div>';
+  }
+  h+='</div></div>';
+
+  // Rows per squad
+  SQUADS.forEach(sq=>{
+    const cfg=takeoverConfig[sq.name];
+    const cls=sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def';
+    h+='<div class="tl-row"><div class="tl-row-label"><span class="ico">'+sq.ico+'</span><span style="flex:1;font-size:10px">'+sq.name+'</span><span class="type '+cls+'">'+cls.toUpperCase()+'</span></div>';
+    h+='<div class="tl-track">';
+
+    if(cfg&&cfg.enabled){
+      // Map timeFrom to position (5:00 = 0%, 23:00 = 100%)
+      const startH=cfg.timeFrom||9;
+      const durH=(cfg.timerMin||15)/60;
+      const left=((startH-5)/18)*100;
+      const width=Math.max((durH/18)*100,3);
+      h+='<div class="tl-bar '+cls+'" style="left:'+left+'%;width:'+width+'%" title="'+sq.name+': '+String(startH).padStart(2,'0')+':00 ('+cfg.timerMin+'min, '+(cfg.hardLock?'hard':'soft')+')" onclick="switchTab(\'squads\')">'+String(startH).padStart(2,'0')+':00</div>';
+    }
+
+    // Now line
+    if(nowH>=5&&nowH<=23){
+      const nowLeft=((nowH-5+nowM/60)/18)*100;
+      h+='<div class="tl-now-line" style="left:'+nowLeft+'%"></div>';
+    }
+
+    h+='</div></div>';
+  });
+
+  h+='</div>';
+
+  // Legend
+  h+='<div style="display:flex;gap:16px;font-size:9px;color:var(--text2);margin-bottom:16px">';
+  h+='<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(226,114,42,.35);vertical-align:middle;margin-right:4px"></span>Attacker</span>';
+  h+='<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(59,130,246,.25);vertical-align:middle;margin-right:4px"></span>Midfielder</span>';
+  h+='<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:rgba(168,85,247,.25);vertical-align:middle;margin-right:4px"></span>Defender</span>';
+  h+='<span style="color:var(--amber)">▎ Now</span>';
+  h+='</div>';
+
+  // Quick summary
+  const configured=Object.keys(takeoverConfig).filter(k=>takeoverConfig[k].enabled).length;
+  const clashes=findClashes();
+  h+='<div style="display:flex;gap:12px;flex-wrap:wrap">';
+  h+='<div style="background:var(--card);border:1px solid var(--amberBd);border-radius:8px;padding:10px 14px;flex:1;min-width:140px"><div style="font-size:20px;font-weight:700;color:var(--amber)">'+configured+'</div><div style="font-size:10px;color:var(--text2)">Active takeovers</div></div>';
+  h+='<div style="background:var(--card);border:1px solid '+(clashes.length?'var(--red)':'var(--amberBd)')+';border-radius:8px;padding:10px 14px;flex:1;min-width:140px"><div style="font-size:20px;font-weight:700;color:'+(clashes.length?'var(--red)':'var(--green)')+'">'+clashes.length+'</div><div style="font-size:10px;color:var(--text2)">Time clashes</div></div>';
+  h+='<div style="background:var(--card);border:1px solid var(--amberBd);border-radius:8px;padding:10px 14px;flex:1;min-width:140px"><div style="font-size:20px;font-weight:700;color:var(--text)">'+(SQUADS.length-configured)+'</div><div style="font-size:10px;color:var(--text2)">Unconfigured</div></div>';
+  h+='</div>';
+
+  return h;
+}
+
+// ===== SQUADS =====
+function renderSquads(){
+  let h='';
+  const types=[
+    {key:'attacker',name:'⚔️ Attackers',cls:'atk'},
+    {key:'midfielder',name:'🏃 Midfielders',cls:'mid'},
+    {key:'defender',name:'🪞 Defenders',cls:'def'},
+  ];
+
+  types.forEach(grp=>{
+    h+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin:16px 0 8px;letter-spacing:.5px">'+grp.name+'</div>';
+    SQUADS.filter(s=>s.type===grp.key).forEach(sq=>{
+      const cfg=takeoverConfig[sq.name];
+      const streak=(streakData[sq.name]||{}).streak||0;
+      const sn=sq.name;
+      const tier=clashPriorities[sn]||1;
+
+      h+='<div class="sq-card">';
+      h+='<div class="sq-hdr"><span class="sq-ico">'+sq.ico+'</span><span class="sq-name">'+sn+'</span>';
+      if(streak>0)h+='<span class="sq-streak">🔥 '+streak+'d</span>';
+      h+='<span class="sq-tone">Tier '+tier+'</span>';
+      h+='</div>';
+
+      if(cfg){
+        // Enabled toggle
+        h+='<div class="sq-row"><span class="sq-label">Enabled</span><button class="sq-toggle '+(cfg.enabled?'on':'')+'" onclick="takeoverConfig[\''+sn+'\'].enabled=!takeoverConfig[\''+sn+'\'].enabled;saveTakeover();render()">'+(cfg.enabled?'● ON':'○ OFF')+'</button></div>';
+
+        // Time
+        h+='<div class="sq-row"><span class="sq-label">Time</span><select class="sq-sel" onchange="takeoverConfig[\''+sn+'\'].timeFrom=parseInt(this.value);saveTakeover();render()">';
+        for(let hh=5;hh<=23;hh++)h+='<option value="'+hh+'" '+(cfg.timeFrom===hh?'selected':'')+'>'+String(hh).padStart(2,'0')+':00</option>';
+        h+='</select></div>';
+
+        // Duration
+        h+='<div class="sq-row"><span class="sq-label">Duration</span><select class="sq-sel" onchange="takeoverConfig[\''+sn+'\'].timerMin=parseInt(this.value);saveTakeover();render()">';
+        [5,10,15,20,30,45,60].forEach(m=>{h+='<option value="'+m+'" '+(cfg.timerMin===m?'selected':'')+'>'+m+' min</option>'});
+        h+='</select></div>';
+
+        // Lock type
+        h+='<div class="sq-row"><span class="sq-label">Lock</span><button class="sq-toggle '+(cfg.hardLock?'on':'')+'" onclick="takeoverConfig[\''+sn+'\'].hardLock=!takeoverConfig[\''+sn+'\'].hardLock;saveTakeover();render()" style="'+(cfg.hardLock?'background:var(--red);border-color:var(--red)':'')+'">'+(cfg.hardLock?'🔴 Hard':'🟡 Soft')+'</button></div>';
+
+        // Days
+        h+='<div class="sq-row"><span class="sq-label">Days</span><div style="display:flex;gap:4px">';
+        ['weekday','weekend'].forEach(d=>{
+          const on=(cfg.days||[]).includes(d);
+          h+='<button class="sq-toggle '+(on?'on':'')+'" onclick="var d=takeoverConfig[\''+sn+'\'].days||[];var i=d.indexOf(\''+d+'\');if(i>=0)d.splice(i,1);else d.push(\''+d+'\');takeoverConfig[\''+sn+'\'].days=d;saveTakeover();render()">'+d+'</button>';
+        });
+        h+='</div></div>';
+
+        // Locations
+        h+='<div class="sq-row"><span class="sq-label">Location</span><div style="display:flex;gap:4px">';
+        ['home','office','outside'].forEach(l=>{
+          const ico={home:'🏠',office:'🏢',outside:'🌳'}[l];
+          const on=(cfg.loc||[]).includes(l);
+          h+='<button class="sq-toggle '+(on?'on':'')+'" onclick="var a=takeoverConfig[\''+sn+'\'].loc||[];var i=a.indexOf(\''+l+'\');if(i>=0)a.splice(i,1);else a.push(\''+l+'\');takeoverConfig[\''+sn+'\'].loc=a;saveTakeover();render()">'+ico+'</button>';
+        });
+        h+='</div></div>';
+
+        // Tasks
+        h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:8px;margin-bottom:4px">Tasks ('+(cfg.tasks||[]).length+')</div>';
+        (cfg.tasks||[]).forEach((t,i)=>{
+          h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input style="width:24px;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:2px;font-size:12px;text-align:center;outline:none;color:var(--text)" value="'+esc(t.ico)+'" onchange="takeoverConfig[\''+sn+'\'].tasks['+i+'].ico=this.value;saveTakeover()"><input style="flex:1;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:4px 6px;font-size:10px;font-family:inherit;outline:none;color:var(--text)" value="'+esc(t.text)+'" onchange="takeoverConfig[\''+sn+'\'].tasks['+i+'].text=this.value;saveTakeover()"><button class="sq-btn sq-btn-danger" style="padding:2px 6px;font-size:9px" onclick="takeoverConfig[\''+sn+'\'].tasks.splice('+i+',1);saveTakeover();render()">✕</button></div>';
+        });
+        h+='<button class="sq-btn sq-btn-ghost" style="width:100%;margin-top:4px" onclick="takeoverConfig[\''+sn+'\'].tasks.push({id:\'tx\'+Date.now(),text:\'New task\',ico:\'📋\',done:false});saveTakeover();render()">+ Add task</button>';
+
+        // Remove
+        h+='<button class="sq-btn sq-btn-danger" style="width:100%;margin-top:8px" onclick="delete takeoverConfig[\''+sn+'\'];saveTakeover();render()">Remove takeover</button>';
+
+      }else{
+        h+='<div style="text-align:center;padding:8px"><button class="sq-btn sq-btn-primary" onclick="takeoverConfig[\''+sn+'\']={enabled:true,hardLock:false,timeFrom:9,timeTo:9,days:[\'weekday\',\'weekend\'],loc:'+JSON.stringify(sq.locs)+',tasks:[{id:\'tx1\',text:\'Complete one task\',ico:\'📋\',done:false}],timerMin:15};saveTakeover();render()">+ Enable takeover</button></div>';
+      }
+      h+='</div>';
+    });
+  });
+
+  return h;
+}
+
+// ===== CLASH DETECTION =====
+function findClashes(){
+  const active=Object.entries(takeoverConfig).filter(([,c])=>c.enabled);
+  const clashes=[];
+  for(let i=0;i<active.length;i++){
+    for(let j=i+1;j<active.length;j++){
+      const[nA,cA]=active[i],[nB,cB]=active[j];
+      // Same time?
+      if(cA.timeFrom===cB.timeFrom){
+        // Same day overlap?
+        const daysA=cA.days||[],daysB=cB.days||[];
+        const sharedDays=daysA.filter(d=>daysB.includes(d));
+        if(sharedDays.length>0){
+          // Same location overlap?
+          const locsA=cA.loc||[],locsB=cB.loc||[];
+          const sharedLocs=locsA.filter(l=>locsB.includes(l));
+          if(sharedLocs.length>0){
+            clashes.push({a:nA,b:nB,time:cA.timeFrom,days:sharedDays,locs:sharedLocs});
+          }
+        }
+      }
+      // Overlapping time (within duration)?
+      const startA=cA.timeFrom,endA=cA.timeFrom+(cA.timerMin||15)/60;
+      const startB=cB.timeFrom,endB=cB.timeFrom+(cB.timerMin||15)/60;
+      if(startA<endB&&startB<endA&&cA.timeFrom!==cB.timeFrom){
+        const daysA=cA.days||[],daysB=cB.days||[];
+        const sharedDays=daysA.filter(d=>daysB.includes(d));
+        if(sharedDays.length>0){
+          const locsA=cA.loc||[],locsB=cB.loc||[];
+          const sharedLocs=locsA.filter(l=>locsB.includes(l));
+          if(sharedLocs.length>0){
+            if(!clashes.find(c=>(c.a===nA&&c.b===nB)||(c.a===nB&&c.b===nA))){
+              clashes.push({a:nA,b:nB,time:Math.max(startA,startB),days:sharedDays,locs:sharedLocs});
+            }
+          }
+        }
+      }
+    }
+  }
+  return clashes;
+}
+
+function resolveClash(a,b){
+  let pa=clashPriorities[a]||1,pb=clashPriorities[b]||1;
+  const reasons=[];
+  // Streak boost
+  if(clashRules.streakProtection&&clashRules.streakProtection.enabled){
+    const sa=(streakData[a]||{}).streak||0;
+    const sbb=(streakData[b]||{}).streak||0;
+    if(sa>=3){pa+=1;reasons.push(a+' gets streak boost (+1)')}
+    if(sbb>=3){pb+=1;reasons.push(b+' gets streak boost (+1)')}
+  }
+  const winner=pa>=pb?a:b;
+  reasons.push('Base tier: '+a+'='+clashPriorities[a]+', '+b+'='+clashPriorities[b]);
+  return{winner,loser:winner===a?b:a,pa,pb,reasons};
+}
+
+function renderClashes(){
+  const clashes=findClashes();
+  let h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">⚔️ Clash Analysis</div>';
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:16px">Auto-detected time conflicts between active takeovers. Higher tier wins.</div>';
+
+  if(clashes.length===0){
+    h+='<div class="empty">✅ No clashes detected. All takeovers have unique time slots.</div>';
+    // Show "what if" simulator
+    h+='<div style="margin-top:20px;background:var(--card);border:1px solid var(--amberBd);border-radius:12px;padding:16px">';
+    h+='<div style="font-size:11px;font-weight:700;margin-bottom:8px">⚡ What-if simulator</div>';
+    h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+    h+='<select class="sq-sel" id="simA">';
+    SQUADS.forEach(s=>{h+='<option value="'+s.name+'">'+s.ico+' '+s.name+'</option>'});
+    h+='</select><span style="font-size:10px;color:var(--text3);font-weight:700">vs</span>';
+    h+='<select class="sq-sel" id="simB">';
+    SQUADS.forEach((s,i)=>{h+='<option value="'+s.name+'" '+(i===7?'selected':'')+'> '+s.ico+' '+s.name+'</option>'});
+    h+='</select>';
+    h+='<button class="sq-btn sq-btn-primary" onclick="runSim()">Simulate</button>';
+    h+='</div><div id="simResult" style="margin-top:8px"></div></div>';
+    return h;
+  }
+
+  h+='<div class="clash-list">';
+  clashes.forEach(cl=>{
+    const res=resolveClash(cl.a,cl.b);
+    const sqA=SQUADS.find(s=>s.name===cl.a);
+    const sqB=SQUADS.find(s=>s.name===cl.b);
+
+    h+='<div class="clash-item conflict">';
+    h+='<div style="flex:1">';
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+    h+='<span style="font-size:16px">'+(sqA?sqA.ico:'⚡')+'</span>';
+    h+='<span style="font-size:11px;font-weight:700">'+cl.a+'</span>';
+    h+='<span class="clash-badge '+(res.winner===cl.a?'winner':'loser')+'">'+(res.winner===cl.a?'WINS ('+res.pa+')':'LOSES ('+res.pa+')')+'</span>';
+    h+='<span class="clash-vs">vs</span>';
+    h+='<span style="font-size:16px">'+(sqB?sqB.ico:'⚡')+'</span>';
+    h+='<span style="font-size:11px;font-weight:700">'+cl.b+'</span>';
+    h+='<span class="clash-badge '+(res.winner===cl.b?'winner':'loser')+'">'+(res.winner===cl.b?'WINS ('+res.pb+')':'LOSES ('+res.pb+')')+'</span>';
+    h+='</div>';
+    h+='<div style="font-size:9px;color:var(--text2)">'+String(Math.floor(cl.time)).padStart(2,'0')+':00 · '+cl.days.join(', ')+' · '+cl.locs.join(', ')+'</div>';
+    h+='<div class="clash-reason">'+res.reasons.join(' · ')+'</div>';
+
+    // Resolution buttons
+    h+='<div style="display:flex;gap:4px;margin-top:6px">';
+    h+='<button class="sq-btn sq-btn-primary" style="font-size:9px" onclick="takeoverConfig[\''+cl.b+'\'].timeFrom=takeoverConfig[\''+cl.b+'\'].timeFrom+1;saveTakeover();render()">Move '+cl.b+' +1hr</button>';
+    h+='<button class="sq-btn sq-btn-danger" style="font-size:9px" onclick="takeoverConfig[\''+cl.b+'\'].enabled=false;saveTakeover();render()">Disable '+cl.b+'</button>';
+    h+='</div>';
+
+    h+='</div></div>';
+  });
+  h+='</div>';
+
+  // Simulator
+  h+='<div style="margin-top:20px;background:var(--card);border:1px solid var(--amberBd);border-radius:12px;padding:16px">';
+  h+='<div style="font-size:11px;font-weight:700;margin-bottom:8px">⚡ What-if simulator</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+  h+='<select class="sq-sel" id="simA">';
+  SQUADS.forEach(s=>{h+='<option value="'+s.name+'">'+s.ico+' '+s.name+'</option>'});
+  h+='</select><span style="font-size:10px;color:var(--text3);font-weight:700">vs</span>';
+  h+='<select class="sq-sel" id="simB">';
+  SQUADS.forEach((s,i)=>{h+='<option value="'+s.name+'" '+(i===7?'selected':'')+'> '+s.ico+' '+s.name+'</option>'});
+  h+='</select>';
+  h+='<button class="sq-btn sq-btn-primary" onclick="runSim()">Simulate</button>';
+  h+='</div><div id="simResult" style="margin-top:8px"></div></div>';
+
+  return h;
+}
+
+function runSim(){
+  const a=document.getElementById('simA').value;
+  const b=document.getElementById('simB').value;
+  const res=resolveClash(a,b);
+  const sqW=SQUADS.find(s=>s.name===res.winner);
+  document.getElementById('simResult').innerHTML='<div style="padding:8px;background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.2);border-radius:8px;font-size:11px"><span style="font-size:16px">'+(sqW?sqW.ico:'⚡')+'</span> <strong>'+res.winner+'</strong> wins (score: '+Math.max(res.pa,res.pb)+' vs '+Math.min(res.pa,res.pb)+')<br><span style="font-size:9px;color:var(--text2)">'+res.reasons.join(' · ')+'</span></div>';
+}
+
+// ===== TIERS =====
+function renderTiers(){
+  let h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">🏆 Priority Tiers</div>';
+  h+='<div style="font-size:10px;color:var(--text2);margin-bottom:16px">Higher tier wins when two squads clash. Use ▲ ▼ to move squads between tiers.</div>';
+
+  const tierMeta=[
+    {n:4,label:'Non-negotiable',desc:'Always wins. Cannot be skipped.'},
+    {n:3,label:'Self-care',desc:'Wins over work/growth squads.'},
+    {n:2,label:'Work / Growth',desc:'Standard priority for productive squads.'},
+    {n:1,label:'Maintenance',desc:'Lowest priority. Yields to all others.'},
+  ];
+
+  tierMeta.forEach(tm=>{
+    const squadsInTier=SQUADS.filter(s=>(clashPriorities[s.name]||1)===tm.n);
+    h+='<div class="tier tier-'+tm.n+'">';
+    h+='<div class="tier-hdr"><span class="tier-badge">Tier '+tm.n+'</span><span style="font-size:11px;font-weight:600">'+tm.label+'</span><span style="font-size:9px;color:var(--text3);margin-left:auto">'+tm.desc+'</span></div>';
+    h+='<div class="tier-chips">';
+    squadsInTier.forEach(sq=>{
+      h+='<div class="tier-chip"><span style="font-size:12px">'+sq.ico+'</span>'+sq.name+'<div class="chip-btns">';
+      if(tm.n<4)h+='<button onclick="clashPriorities[\''+sq.name+'\']='+(tm.n+1)+';saveClash();render()" title="Move up">▲</button>';
+      if(tm.n>1)h+='<button onclick="clashPriorities[\''+sq.name+'\']='+(tm.n-1)+';saveClash();render()" title="Move down">▼</button>';
+      h+='</div></div>';
+    });
+    if(squadsInTier.length===0)h+='<span style="font-size:9px;color:var(--text3);padding:4px">Empty</span>';
+    h+='</div></div>';
+  });
+
+  // Override rules
+  h+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin:20px 0 8px;letter-spacing:.5px">OVERRIDE RULES</div>';
+  Object.entries(clashRules).forEach(([key,rule])=>{
+    h+='<div style="display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--amberBd);border-radius:8px;padding:8px 12px;margin-bottom:6px">';
+    h+='<button class="sq-toggle '+(rule.enabled?'on':'')+'" onclick="clashRules.'+key+'.enabled=!clashRules.'+key+'.enabled;saveClash();render()">'+(rule.enabled?'ON':'OFF')+'</button>';
+    h+='<div style="flex:1"><div style="font-size:10px;font-weight:600">'+key.replace(/([A-Z])/g,' $1').trim()+'</div>';
+    h+='<div style="font-size:9px;color:var(--text2)">'+esc(rule.description||'')+'</div></div></div>';
+  });
+
+  return h;
+}
+
+// ===== HELPERS =====
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ===== BOOT =====
+init();
+</script>
+</body>
+</html>
