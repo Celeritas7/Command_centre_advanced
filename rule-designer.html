@@ -254,12 +254,27 @@ function renderTimeline(){
     h+='<div class="tl-track">';
 
     if(cfg&&cfg.enabled){
-      // Map timeFrom to position (5:00 = 0%, 23:00 = 100%)
-      const startH=cfg.timeFrom||9;
-      const durH=(cfg.timerMin||15)/60;
-      const left=((startH-5)/18)*100;
-      const width=Math.max((durH/18)*100,3);
-      h+='<div class="tl-bar '+cls+'" style="left:'+left+'%;width:'+width+'%" title="'+sq.name+': '+String(startH).padStart(2,'0')+':00 ('+cfg.timerMin+'min, '+(cfg.hardLock?'hard':'soft')+')" onclick="switchTab(\'squads\')">'+String(startH).padStart(2,'0')+':00</div>';
+      var hasSplit=cfg.weekdayOverride||cfg.weekendOverride;
+      if(hasSplit){
+        // Two bars: weekday + weekend
+        var wdOv=cfg.weekdayOverride||{};
+        var weOv=cfg.weekendOverride||{};
+        var wdTime=wdOv.timeFrom!=null?wdOv.timeFrom:cfg.timeFrom;
+        var wdDur=(wdOv.timerMin!=null?wdOv.timerMin:cfg.timerMin)/60;
+        var weTime=weOv.timeFrom!=null?weOv.timeFrom:cfg.timeFrom;
+        var weDur=(weOv.timerMin!=null?weOv.timerMin:cfg.timerMin)/60;
+        var wdLeft=((wdTime-5)/18)*100;var wdW=Math.max((wdDur/18)*100,3);
+        var weLeft=((weTime-5)/18)*100;var weW=Math.max((weDur/18)*100,3);
+        h+='<div class="tl-bar '+cls+'" style="left:'+wdLeft+'%;width:'+wdW+'%;top:2px;height:14px;font-size:7px" title="'+sq.name+' weekday: '+String(wdTime).padStart(2,'0')+':00 ('+(wdOv.timerMin||cfg.timerMin)+'min)">WD '+String(wdTime).padStart(2,'0')+'</div>';
+        h+='<div class="tl-bar '+cls+'" style="left:'+weLeft+'%;width:'+weW+'%;top:18px;height:14px;font-size:7px;opacity:.7" title="'+sq.name+' weekend: '+String(weTime).padStart(2,'0')+':00 ('+(weOv.timerMin||cfg.timerMin)+'min)">WE '+String(weTime).padStart(2,'0')+'</div>';
+      }else{
+        // Single bar
+        var startH=cfg.timeFrom||9;
+        var durH=(cfg.timerMin||15)/60;
+        var left=((startH-5)/18)*100;
+        var width=Math.max((durH/18)*100,3);
+        h+='<div class="tl-bar '+cls+'" style="left:'+left+'%;width:'+width+'%" title="'+sq.name+': '+String(startH).padStart(2,'0')+':00 ('+cfg.timerMin+'min, '+(cfg.hardLock?'hard':'soft')+')" onclick="switchTab(\'squads\')">'+String(startH).padStart(2,'0')+':00</div>';
+      }
     }
 
     // Now line
@@ -294,21 +309,54 @@ function renderTimeline(){
 }
 
 // ===== SQUADS =====
+// Helper: render a config panel (used for base, weekday override, or weekend override)
+function renderCfgPanel(sn,cfgPath,cfg,label){
+  var h='';
+  h+='<div style="background:var(--bg);border:1px solid var(--amberBd);border-radius:8px;padding:10px;margin-bottom:6px">';
+  h+='<div style="font-size:9px;font-weight:700;color:var(--amber);letter-spacing:.5px;margin-bottom:6px">'+label+'</div>';
+  h+='<div class="sq-row"><span class="sq-label">Time</span><select class="sq-sel" onchange="'+cfgPath+'.timeFrom=parseInt(this.value);saveTakeover();render()">';
+  for(var hh=5;hh<=23;hh++)h+='<option value="'+hh+'" '+(cfg.timeFrom===hh?'selected':'')+'>'+String(hh).padStart(2,'0')+':00</option>';
+  h+='</select></div>';
+  h+='<div class="sq-row"><span class="sq-label">Duration</span><select class="sq-sel" onchange="'+cfgPath+'.timerMin=parseInt(this.value);saveTakeover();render()">';
+  [5,10,15,20,30,45,60,90,120].forEach(function(m){h+='<option value="'+m+'" '+(cfg.timerMin===m?'selected':'')+'>'+m+' min</option>'});
+  h+='</select></div>';
+  h+='<div class="sq-row"><span class="sq-label">Lock</span><button class="sq-toggle '+(cfg.hardLock?'on':'')+'" onclick="'+cfgPath+'.hardLock=!'+cfgPath+'.hardLock;saveTakeover();render()" style="'+(cfg.hardLock?'background:var(--red);border-color:var(--red)':'')+'">'+(cfg.hardLock?'🔴 Hard':'🟡 Soft')+'</button></div>';
+  h+='<div class="sq-row"><span class="sq-label">Location</span><div style="display:flex;gap:4px">';
+  ['home','office','outside'].forEach(function(l){
+    var ico={home:'🏠',office:'🏢',outside:'🌳'}[l];
+    var on=(cfg.loc||[]).includes(l);
+    h+='<button class="sq-toggle '+(on?'on':'')+'" onclick="var a='+cfgPath+'.loc||[];var i=a.indexOf(\''+l+'\');if(i>=0)a.splice(i,1);else a.push(\''+l+'\');'+cfgPath+'.loc=a;saveTakeover();render()">'+ico+'</button>';
+  });
+  h+='</div></div>';
+  // Tasks
+  if(cfg.tasks){
+    h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:6px;margin-bottom:4px">Tasks ('+(cfg.tasks||[]).length+')</div>';
+    (cfg.tasks||[]).forEach(function(t,i){
+      h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input style="width:24px;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:2px;font-size:12px;text-align:center;outline:none;color:var(--text)" value="'+esc(t.ico)+'" onchange="'+cfgPath+'.tasks['+i+'].ico=this.value;saveTakeover()"><input style="flex:1;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:4px 6px;font-size:10px;font-family:inherit;outline:none;color:var(--text)" value="'+esc(t.text)+'" onchange="'+cfgPath+'.tasks['+i+'].text=this.value;saveTakeover()"><button class="sq-btn sq-btn-danger" style="padding:2px 6px;font-size:9px" onclick="'+cfgPath+'.tasks.splice('+i+',1);saveTakeover();render()">✕</button></div>';
+    });
+    h+='<button class="sq-btn sq-btn-ghost" style="width:100%;margin-top:4px" onclick="'+cfgPath+'.tasks.push({id:\'tx\'+Date.now(),text:\'New task\',ico:\'📋\',done:false});saveTakeover();render()">+ Add task</button>';
+  }
+  h+='</div>';
+  return h;
+}
+
 function renderSquads(){
-  let h='';
-  const types=[
+  var h='';
+  var types=[
     {key:'attacker',name:'⚔️ Attackers',cls:'atk'},
     {key:'midfielder',name:'🏃 Midfielders',cls:'mid'},
     {key:'defender',name:'🪞 Defenders',cls:'def'},
   ];
 
-  types.forEach(grp=>{
+  types.forEach(function(grp){
     h+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin:16px 0 8px;letter-spacing:.5px">'+grp.name+'</div>';
-    SQUADS.filter(s=>s.type===grp.key).forEach(sq=>{
-      const cfg=takeoverConfig[sq.name];
-      const streak=(streakData[sq.name]||{}).streak||0;
-      const sn=sq.name;
-      const tier=clashPriorities[sn]||1;
+    SQUADS.filter(function(s){return s.type===grp.key}).forEach(function(sq){
+      var cfg=takeoverConfig[sq.name];
+      var streak=(streakData[sq.name]||{}).streak||0;
+      var sn=sq.name;
+      var sSn=sn.replace(/'/g,"\\'");
+      var tier=clashPriorities[sn]||1;
+      var hasSplit=cfg&&(cfg.weekdayOverride||cfg.weekendOverride);
 
       h+='<div class="sq-card">';
       h+='<div class="sq-hdr"><span class="sq-ico">'+sq.ico+'</span><span class="sq-name">'+sn+'</span>';
@@ -318,56 +366,76 @@ function renderSquads(){
 
       if(cfg){
         // Enabled toggle
-        h+='<div class="sq-row"><span class="sq-label">Enabled</span><button class="sq-toggle '+(cfg.enabled?'on':'')+'" onclick="takeoverConfig[\''+sn+'\'].enabled=!takeoverConfig[\''+sn+'\'].enabled;saveTakeover();render()">'+(cfg.enabled?'● ON':'○ OFF')+'</button></div>';
+        h+='<div class="sq-row"><span class="sq-label">Enabled</span><button class="sq-toggle '+(cfg.enabled?'on':'')+'" onclick="takeoverConfig[\''+sSn+'\'].enabled=!takeoverConfig[\''+sSn+'\'].enabled;saveTakeover();render()">'+(cfg.enabled?'● ON':'○ OFF')+'</button></div>';
 
-        // Time
-        h+='<div class="sq-row"><span class="sq-label">Time</span><select class="sq-sel" onchange="takeoverConfig[\''+sn+'\'].timeFrom=parseInt(this.value);saveTakeover();render()">';
-        for(let hh=5;hh<=23;hh++)h+='<option value="'+hh+'" '+(cfg.timeFrom===hh?'selected':'')+'>'+String(hh).padStart(2,'0')+':00</option>';
-        h+='</select></div>';
+        if(hasSplit){
+          // === SPLIT MODE ===
+          h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><span style="font-size:9px;color:var(--green);font-weight:700">✂ Weekday/Weekend split active</span><button class="sq-btn sq-btn-danger" style="font-size:8px;padding:2px 8px;margin-left:auto" onclick="delete takeoverConfig[\''+sSn+'\'].weekdayOverride;delete takeoverConfig[\''+sSn+'\'].weekendOverride;saveTakeover();render()">Merge back</button></div>';
 
-        // Duration
-        h+='<div class="sq-row"><span class="sq-label">Duration</span><select class="sq-sel" onchange="takeoverConfig[\''+sn+'\'].timerMin=parseInt(this.value);saveTakeover();render()">';
-        [5,10,15,20,30,45,60].forEach(m=>{h+='<option value="'+m+'" '+(cfg.timerMin===m?'selected':'')+'>'+m+' min</option>'});
-        h+='</select></div>';
+          // Weekday panel
+          var wdOv=cfg.weekdayOverride||{};
+          var wdCfg={timeFrom:wdOv.timeFrom!=null?wdOv.timeFrom:cfg.timeFrom,timerMin:wdOv.timerMin!=null?wdOv.timerMin:cfg.timerMin,hardLock:wdOv.hardLock!=null?wdOv.hardLock:cfg.hardLock,loc:wdOv.loc||cfg.loc,tasks:wdOv.tasks||cfg.tasks};
+          h+=renderCfgPanel(sn,"takeoverConfig['"+sSn+"'].weekdayOverride",wdCfg,'📅 WEEKDAY');
 
-        // Lock type
-        h+='<div class="sq-row"><span class="sq-label">Lock</span><button class="sq-toggle '+(cfg.hardLock?'on':'')+'" onclick="takeoverConfig[\''+sn+'\'].hardLock=!takeoverConfig[\''+sn+'\'].hardLock;saveTakeover();render()" style="'+(cfg.hardLock?'background:var(--red);border-color:var(--red)':'')+'">'+(cfg.hardLock?'🔴 Hard':'🟡 Soft')+'</button></div>';
+          // Weekend panel
+          var weOv=cfg.weekendOverride||{};
+          var weCfg={timeFrom:weOv.timeFrom!=null?weOv.timeFrom:cfg.timeFrom,timerMin:weOv.timerMin!=null?weOv.timerMin:cfg.timerMin,hardLock:weOv.hardLock!=null?weOv.hardLock:cfg.hardLock,loc:weOv.loc||cfg.loc,tasks:weOv.tasks||cfg.tasks};
+          h+=renderCfgPanel(sn,"takeoverConfig['"+sSn+"'].weekendOverride",weCfg,'🌴 WEEKEND');
 
-        // Days
-        h+='<div class="sq-row"><span class="sq-label">Days</span><div style="display:flex;gap:4px">';
-        ['weekday','weekend'].forEach(d=>{
-          const on=(cfg.days||[]).includes(d);
-          h+='<button class="sq-toggle '+(on?'on':'')+'" onclick="var d=takeoverConfig[\''+sn+'\'].days||[];var i=d.indexOf(\''+d+'\');if(i>=0)d.splice(i,1);else d.push(\''+d+'\');takeoverConfig[\''+sn+'\'].days=d;saveTakeover();render()">'+d+'</button>';
-        });
-        h+='</div></div>';
+        }else{
+          // === UNIFIED MODE ===
+          h+='<div class="sq-row"><span class="sq-label">Time</span><select class="sq-sel" onchange="takeoverConfig[\''+sSn+'\'].timeFrom=parseInt(this.value);saveTakeover();render()">';
+          for(var hh=5;hh<=23;hh++)h+='<option value="'+hh+'" '+(cfg.timeFrom===hh?'selected':'')+'>'+String(hh).padStart(2,'0')+':00</option>';
+          h+='</select></div>';
+          h+='<div class="sq-row"><span class="sq-label">Duration</span><select class="sq-sel" onchange="takeoverConfig[\''+sSn+'\'].timerMin=parseInt(this.value);saveTakeover();render()">';
+          [5,10,15,20,30,45,60,90,120].forEach(function(m){h+='<option value="'+m+'" '+(cfg.timerMin===m?'selected':'')+'>'+m+' min</option>'});
+          h+='</select></div>';
+          h+='<div class="sq-row"><span class="sq-label">Lock</span><button class="sq-toggle '+(cfg.hardLock?'on':'')+'" onclick="takeoverConfig[\''+sSn+'\'].hardLock=!takeoverConfig[\''+sSn+'\'].hardLock;saveTakeover();render()" style="'+(cfg.hardLock?'background:var(--red);border-color:var(--red)':'')+'">'+(cfg.hardLock?'🔴 Hard':'🟡 Soft')+'</button></div>';
+          h+='<div class="sq-row"><span class="sq-label">Days</span><div style="display:flex;gap:4px">';
+          ['weekday','weekend'].forEach(function(d){
+            var on=(cfg.days||[]).includes(d);
+            h+='<button class="sq-toggle '+(on?'on':'')+'" onclick="var d=takeoverConfig[\''+sSn+'\'].days||[];var i=d.indexOf(\''+d+'\');if(i>=0)d.splice(i,1);else d.push(\''+d+'\');takeoverConfig[\''+sSn+'\'].days=d;saveTakeover();render()">'+d+'</button>';
+          });
+          h+='</div></div>';
+          h+='<div class="sq-row"><span class="sq-label">Location</span><div style="display:flex;gap:4px">';
+          ['home','office','outside'].forEach(function(l){
+            var ico={home:'🏠',office:'🏢',outside:'🌳'}[l];
+            var on=(cfg.loc||[]).includes(l);
+            h+='<button class="sq-toggle '+(on?'on':'')+'" onclick="var a=takeoverConfig[\''+sSn+'\'].loc||[];var i=a.indexOf(\''+l+'\');if(i>=0)a.splice(i,1);else a.push(\''+l+'\');takeoverConfig[\''+sSn+'\'].loc=a;saveTakeover();render()">'+ico+'</button>';
+          });
+          h+='</div></div>';
+          // Tasks
+          h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:8px;margin-bottom:4px">Tasks ('+(cfg.tasks||[]).length+')</div>';
+          (cfg.tasks||[]).forEach(function(t,i){
+            h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input style="width:24px;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:2px;font-size:12px;text-align:center;outline:none;color:var(--text)" value="'+esc(t.ico)+'" onchange="takeoverConfig[\''+sSn+'\'].tasks['+i+'].ico=this.value;saveTakeover()"><input style="flex:1;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:4px 6px;font-size:10px;font-family:inherit;outline:none;color:var(--text)" value="'+esc(t.text)+'" onchange="takeoverConfig[\''+sSn+'\'].tasks['+i+'].text=this.value;saveTakeover()"><button class="sq-btn sq-btn-danger" style="padding:2px 6px;font-size:9px" onclick="takeoverConfig[\''+sSn+'\'].tasks.splice('+i+',1);saveTakeover();render()">✕</button></div>';
+          });
+          h+='<button class="sq-btn sq-btn-ghost" style="width:100%;margin-top:4px" onclick="takeoverConfig[\''+sSn+'\'].tasks.push({id:\'tx\'+Date.now(),text:\'New task\',ico:\'📋\',done:false});saveTakeover();render()">+ Add task</button>';
 
-        // Locations
-        h+='<div class="sq-row"><span class="sq-label">Location</span><div style="display:flex;gap:4px">';
-        ['home','office','outside'].forEach(l=>{
-          const ico={home:'🏠',office:'🏢',outside:'🌳'}[l];
-          const on=(cfg.loc||[]).includes(l);
-          h+='<button class="sq-toggle '+(on?'on':'')+'" onclick="var a=takeoverConfig[\''+sn+'\'].loc||[];var i=a.indexOf(\''+l+'\');if(i>=0)a.splice(i,1);else a.push(\''+l+'\');takeoverConfig[\''+sn+'\'].loc=a;saveTakeover();render()">'+ico+'</button>';
-        });
-        h+='</div></div>';
-
-        // Tasks
-        h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:8px;margin-bottom:4px">Tasks ('+(cfg.tasks||[]).length+')</div>';
-        (cfg.tasks||[]).forEach((t,i)=>{
-          h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input style="width:24px;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:2px;font-size:12px;text-align:center;outline:none;color:var(--text)" value="'+esc(t.ico)+'" onchange="takeoverConfig[\''+sn+'\'].tasks['+i+'].ico=this.value;saveTakeover()"><input style="flex:1;background:var(--card2);border:1px solid var(--amberBd);border-radius:4px;padding:4px 6px;font-size:10px;font-family:inherit;outline:none;color:var(--text)" value="'+esc(t.text)+'" onchange="takeoverConfig[\''+sn+'\'].tasks['+i+'].text=this.value;saveTakeover()"><button class="sq-btn sq-btn-danger" style="padding:2px 6px;font-size:9px" onclick="takeoverConfig[\''+sn+'\'].tasks.splice('+i+',1);saveTakeover();render()">✕</button></div>';
-        });
-        h+='<button class="sq-btn sq-btn-ghost" style="width:100%;margin-top:4px" onclick="takeoverConfig[\''+sn+'\'].tasks.push({id:\'tx\'+Date.now(),text:\'New task\',ico:\'📋\',done:false});saveTakeover();render()">+ Add task</button>';
+          // Split button
+          h+='<button class="sq-btn" style="width:100%;margin-top:8px;background:var(--teal);color:var(--bg)" onclick="splitWeekdayWeekend(\''+sSn+'\')">✂ Split weekday / weekend</button>';
+        }
 
         // Remove
-        h+='<button class="sq-btn sq-btn-danger" style="width:100%;margin-top:8px" onclick="delete takeoverConfig[\''+sn+'\'];saveTakeover();render()">Remove takeover</button>';
+        h+='<button class="sq-btn sq-btn-danger" style="width:100%;margin-top:8px" onclick="delete takeoverConfig[\''+sSn+'\'];saveTakeover();render()">Remove takeover</button>';
 
       }else{
-        h+='<div style="text-align:center;padding:8px"><button class="sq-btn sq-btn-primary" onclick="takeoverConfig[\''+sn+'\']={enabled:true,hardLock:false,timeFrom:9,timeTo:9,days:[\'weekday\',\'weekend\'],loc:'+JSON.stringify(sq.locs)+',tasks:[{id:\'tx1\',text:\'Complete one task\',ico:\'📋\',done:false}],timerMin:15};saveTakeover();render()">+ Enable takeover</button></div>';
+        h+='<div style="text-align:center;padding:8px"><button class="sq-btn sq-btn-primary" onclick="takeoverConfig[\''+sSn+'\']={enabled:true,hardLock:false,timeFrom:9,timeTo:9,days:[\'weekday\',\'weekend\'],loc:'+JSON.stringify(sq.locs)+',tasks:[{id:\'tx1\',text:\'Complete one task\',ico:\'📋\',done:false}],timerMin:15};saveTakeover();render()">+ Enable takeover</button></div>';
       }
       h+='</div>';
     });
   });
 
   return h;
+}
+
+function splitWeekdayWeekend(sn){
+  var cfg=takeoverConfig[sn];if(!cfg)return;
+  // Clone base into both overrides so user can edit them independently
+  cfg.weekdayOverride={timeFrom:cfg.timeFrom,timerMin:cfg.timerMin,hardLock:cfg.hardLock,loc:(cfg.loc||[]).slice(),tasks:(cfg.tasks||[]).map(function(t){return{id:'wd_'+t.id,text:t.text,ico:t.ico,done:false}})};
+  cfg.weekendOverride={timeFrom:cfg.timeFrom,timerMin:cfg.timerMin*2,hardLock:cfg.hardLock,loc:(cfg.loc||[]).slice(),tasks:(cfg.tasks||[]).map(function(t){return{id:'we_'+t.id,text:t.text,ico:t.ico,done:false}})};
+  // Base days covers both
+  cfg.days=['weekday','weekend'];
+  saveTakeover();render();
 }
 
 // ===== CLASH DETECTION =====

@@ -1969,6 +1969,15 @@ function tkvSaveConfig(){memSave('cf_takeover_cfg',JSON.stringify(takeoverConfig
 function tkvSaveFired(){memSave('cf_takeover_fired',JSON.stringify(tkvFiredToday))}
 
 // Check if any takeover should fire right now
+// Resolve config for current day type — merges base with weekday/weekend override
+function tkvResolve(cfg){
+  var dt=dayType();var isWknd=(dt==='weekend'||dt==='holiday');
+  var ov=isWknd?cfg.weekendOverride:cfg.weekdayOverride;
+  if(!ov)return cfg;
+  // Shallow merge: override fields replace base
+  return Object.assign({},cfg,ov,{enabled:cfg.enabled,weekdayOverride:cfg.weekdayOverride,weekendOverride:cfg.weekendOverride});
+}
+
 function tkvCheck(){
   if(tkvActive)return; // already showing
   if(emergencyMode)return; // no takeovers in emergency
@@ -1976,10 +1985,11 @@ function tkvCheck(){
   const dt=dayType();
   const today=todayK();
 
-  for(const[sqN,cfg] of Object.entries(takeoverConfig)){
-    if(!cfg.enabled)continue;
+  for(const[sqN,baseCfg] of Object.entries(takeoverConfig)){
+    if(!baseCfg.enabled)continue;
     const firedKey=sqN+'_'+today;
     if(tkvFiredToday[firedKey])continue; // already fired today
+    const cfg=tkvResolve(baseCfg);
     // Check day type
     if(!cfg.days.includes(dt)&&!(dt==='holiday'&&cfg.days.includes('weekend')))continue;
     // Check location
@@ -1993,9 +2003,10 @@ function tkvCheck(){
 }
 
 async function tkvTrigger(sqN){
-  const cfg=takeoverConfig[sqN];
+  const baseCfg=takeoverConfig[sqN];
+  const cfg=tkvResolve(baseCfg);
   const p=PERSONALITIES[sqN];
-  if(!cfg||!p)return;
+  if(!baseCfg||!p)return;
 
   tkvActive=sqN;
   tkvChecked=new Set();
@@ -2031,7 +2042,7 @@ async function tkvTrigger(sqN){
 
 function tkvRender(){
   const sqN=tkvActive;if(!sqN)return;
-  const cfg=takeoverConfig[sqN];
+  const cfg=tkvResolve(takeoverConfig[sqN]);
   const p=PERSONALITIES[sqN];
   const streak=streakData[sqN]||{lastDone:null,streak:0};
 
@@ -2077,7 +2088,7 @@ function tkvToggle(taskId){
 }
 
 function tkvFinish(){
-  const cfg=takeoverConfig[tkvActive];
+  const cfg=tkvResolve(takeoverConfig[tkvActive]);
   const hasChecked=tkvChecked.size>=1;
   const timerDone=tkvTimerRem<=0;
   const canFinish=cfg.hardLock?(hasChecked&&timerDone):hasChecked;
