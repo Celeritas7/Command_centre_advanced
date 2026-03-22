@@ -954,8 +954,9 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 <!-- CENTERED OVERLAY -->
 <div class="ov-bg" id="ovBg" onclick="if(event.target===this)closeOv()">
   <div class="ov-panel"><div class="ov-top"><div class="ov-title">Locker Room</div><div class="ov-close" onclick="closeOv()">✕</div></div>
-    <div class="ov-tabs"><button class="ov-tab active" id="ovTabB" onclick="switchOvTab('bench')">📋 Bench</button><button class="ov-tab" id="ovTabR" onclick="switchOvTab('rules')">📏 Rules</button><button class="ov-tab" id="ovTabS" onclick="switchOvTab('settings')">⚙️</button><button class="ov-tab" id="ovTabBr" onclick="switchOvTab('brain')">🧠</button><button class="ov-tab" id="ovTabTk" onclick="switchOvTab('takeover')">⚡</button><button class="ov-tab" id="ovTabCm" onclick="switchOvTab('commute')">🚃</button></div>
+    <div style="display:flex;gap:4px;margin-bottom:10px"><input id="benchNewTask" placeholder="Add a task..." style="flex:1;border:1.5px solid var(--as);border-radius:10px;padding:8px 12px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:var(--card);color:var(--text)" onkeydown="if(event.key==='Enter')benchQuickAdd()"><select id="benchNewCat" style="border:1.5px solid var(--as);border-radius:10px;padding:8px 6px;font-size:10px;font-family:'DM Sans',sans-serif;outline:none;background:var(--card);color:var(--text2);max-width:110px"></select><button onclick="benchQuickAdd()" style="border:none;background:var(--accent);color:white;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+</button></div>
     <div id="ovContent"></div>
+    <a href="manager.html" style="display:block;text-align:center;padding:10px;margin-top:12px;font-size:11px;color:var(--accent);text-decoration:none;border:1.5px dashed var(--as);border-radius:10px">⚙️ Open Manager — rules, brain, takeover, settings</a>
   </div>
 </div>
 
@@ -3647,10 +3648,20 @@ function updateBadge(){
 function updateClock(){document.getElementById('timeD').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}
 
 // ===== OVERLAY =====
-function openOv(){document.getElementById('ovBg').classList.add('show');renderOv()}
+function openOv(){document.getElementById('ovBg').classList.add('show');renderOv();populateBenchCatDropdown()}
 function closeOv(){document.getElementById('ovBg').classList.remove('show')}
-function switchOvTab(t){ovTab=t;['B','R','S','Br','Tk','Cm'].forEach(function(k){document.getElementById('ovTab'+k).classList.toggle('active',t===({B:'bench',R:'rules',S:'settings',Br:'brain',Tk:'takeover',Cm:'commute'}[k]))});renderOv()}
-function renderOv(){var r={bench:renderBench,rules:renderRules,settings:renderSettings,brain:renderBrain,takeover:renderTakeoverTab,commute:renderCommuteTab};document.getElementById('ovContent').innerHTML=(r[ovTab]||renderBench)()}
+function renderOv(){document.getElementById('ovContent').innerHTML=renderBench()}
+function populateBenchCatDropdown(){
+  var sel=document.getElementById('benchNewCat');if(!sel)return;
+  var cats=Object.entries(playerMap).map(function(e){return e[0]}).sort();
+  sel.innerHTML='<option value="">No category</option>'+cats.map(function(c){return'<option value="'+esc(c)+'">'+esc(c)+'</option>'}).join('');
+}
+async function benchQuickAdd(){
+  var inp=document.getElementById('benchNewTask');var name=inp.value.trim();if(!name)return;
+  var cat=document.getElementById('benchNewCat').value;
+  await createTask(name,cat||null);
+  inp.value='';renderOv();
+}
 
 // ===== BENCH =====
 function renderBench(){

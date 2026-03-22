@@ -195,6 +195,10 @@ var clashRules={weekendShieldsUp:{enabled:true,beforeHour:13,description:'Defend
 var allTasks=[],playerMap={},timeSlotRules={},ofcBlLinks=[],ssMessages=[],ssTimeoutMin=15;
 var costTriggerCfg={timeTriggers:[],gpsShops:[],gpsCooldownMin:15,officeDeparture:{enabled:true,delayMin:2}};
 var gpsLat=0,gpsLng=0,gpsAccuracy=0,gpsAutoLoc=true;
+var gpsLocations={
+  home:{name:'Home',lat:35.7089,lng:139.9454,radius:500,ico:'🏠'},
+  office:{name:'Office',lat:35.5791,lng:139.7485,radius:500,ico:'🏢'},
+};
 var ccApiKey='',brainSettings={},customSquads={};
 var personalities={};
 
@@ -242,7 +246,7 @@ async function init(){
     (asm||[]).forEach(function(a){playerMap[a.name]=playerMap[a.name]||'attacker'});
     // Load brain settings
     var{data:bs}=await sb.from('command_centre_brain_settings').select('key,value');
-    (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{};if(r.key==='day_plans')dayPlans=r.value||dayPlans});
+    (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{};if(r.key==='day_plans')dayPlans=r.value||dayPlans;if(r.key==='gps_locations')gpsLocations=r.value||gpsLocations});
     // GPS
     if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy)},function(){},{timeout:8000});
   }catch(e){console.error('Init error:',e)}
@@ -255,6 +259,7 @@ async function saveTakeover(){await saveMem('cf_takeover_cfg',takeoverConfig)}
 async function saveClash(){await sb.from('command_centre_brain_settings').upsert({key:'clash_config',value:{priorities:clashPriorities,rules:clashRules}},{onConflict:'key'})}
 async function savePersonalities(){await sb.from('command_centre_brain_settings').upsert({key:'personalities',value:personalities},{onConflict:'key'})}
 async function saveDayPlans(){await sb.from('command_centre_brain_settings').upsert({key:'day_plans',value:dayPlans},{onConflict:'key'})}
+async function saveGpsLocations(){await sb.from('command_centre_brain_settings').upsert({key:'gps_locations',value:gpsLocations},{onConflict:'key'})}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function sSn(s){return s.replace(/'/g,"\\'")}
 function isWeekend(){var d=new Date().getDay();return d===0||d===6}
@@ -767,17 +772,53 @@ function pgSettings(){
 
 // ===== PAGE: COMMUTE =====
 function pgCommute(){
-  var h='<div class="page-hdr"><div class="page-title">🚃 Commute & GPS</div><div class="page-sub">Location detection, train card visibility, test mode</div></div>';
-  h+='<div class="mgr-card"><div class="mgr-card-hd">📍 GPS Status</div>';
+  var h='<div class="page-hdr"><div class="page-title">🚃 Commute & GPS</div><div class="page-sub">Location detection, saved places, train card</div></div>';
+
+  // GPS Status
+  h+='<div class="mgr-card"><div class="mgr-card-hd">📡 GPS Status</div>';
   if(gpsLat){
-    h+='<div style="padding:8px;background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.2);border-radius:8px;font-size:11px"><span class="dot dot-g"></span> GPS active — ±'+gpsAccuracy+'m<br><span style="font-size:9px;color:var(--text2)">'+gpsLat.toFixed(4)+', '+gpsLng.toFixed(4)+'</span></div>';
+    h+='<div style="padding:8px;background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.2);border-radius:8px;font-size:11px;margin-bottom:8px"><span class="dot dot-g"></span> GPS active — ±'+gpsAccuracy+'m<br><span style="font-size:9px;color:var(--text2)">'+gpsLat.toFixed(6)+', '+gpsLng.toFixed(6)+'</span></div>';
   }else{
-    h+='<div style="padding:8px;background:var(--card2);border-radius:8px;font-size:11px;color:var(--text3)"><span class="dot dot-r"></span> No GPS data</div>';
+    h+='<div style="padding:8px;background:var(--card2);border-radius:8px;font-size:11px;color:var(--text3);margin-bottom:8px"><span class="dot dot-r"></span> No GPS data — tap Refresh</div>';
   }
-  h+='<div class="mgr-row" style="margin-top:8px"><span class="mgr-label">Auto-switch</span><button class="mgr-toggle '+(gpsAutoLoc?'on':'')+'" onclick="gpsAutoLoc=!gpsAutoLoc;renderPage()">'+(gpsAutoLoc?'ON':'OFF')+'</button><button class="mgr-btn mgr-btn-primary" style="margin-left:8px" onclick="navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy);renderPage()})">📡 Refresh</button></div></div>';
-  h+='<div class="mgr-card"><div class="mgr-card-hd">🚃 Train Card Visibility</div>';
-  h+='<div class="mgr-card-sub">Currently not editable here — use the main CC app Settings tab for train card window + test mode.</div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Auto-switch</span><button class="mgr-toggle '+(gpsAutoLoc?'on':'')+'" onclick="gpsAutoLoc=!gpsAutoLoc;renderPage()">'+(gpsAutoLoc?'ON':'OFF')+'</button><button class="mgr-btn mgr-btn-primary" style="margin-left:8px" onclick="navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy);renderPage()})">📡 Refresh</button></div></div>';
+
+  // Saved Locations
+  h+='<div class="mgr-card"><div class="mgr-card-hd">📍 Saved Locations</div>';
+  h+='<div class="mgr-card-sub">The brain uses these to auto-detect where you are and fire location-based triggers. Radius = how close you need to be for detection.</div>';
+
+  Object.entries(gpsLocations).forEach(function(e){
+    var key=e[0],loc=e[1];
+    var dist='';
+    if(gpsLat){
+      var R=6371000,dLat=(loc.lat-gpsLat)*Math.PI/180,dLon=(loc.lng-gpsLng)*Math.PI/180;
+      var a=Math.sin(dLat/2)**2+Math.cos(gpsLat*Math.PI/180)*Math.cos(loc.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+      var d=Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+      var inside=d<=loc.radius;
+      dist='<span style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;'+(inside?'background:rgba(56,161,105,.15);color:var(--green)':'background:var(--card2);color:var(--text3)')+'">'+d+'m '+(inside?'● INSIDE':'away')+'</span>';
+    }
+
+    h+='<div style="background:var(--bg);border:1px solid var(--amberBd);border-radius:8px;padding:10px;margin-bottom:6px">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:16px">'+(loc.ico||'📍')+'</span><input class="mgr-inp" style="flex:1;font-size:12px;font-weight:700" value="'+esc(loc.name)+'" onchange="gpsLocations[\''+key+'\'].name=this.value;saveGpsLocations()">'+dist+'</div>';
+
+    h+='<div class="mgr-row"><span class="mgr-label">Latitude</span><input class="mgr-inp" type="number" step="0.0001" style="flex:1" value="'+loc.lat+'" onchange="gpsLocations[\''+key+'\'].lat=parseFloat(this.value);saveGpsLocations();renderPage()"></div>';
+    h+='<div class="mgr-row"><span class="mgr-label">Longitude</span><input class="mgr-inp" type="number" step="0.0001" style="flex:1" value="'+loc.lng+'" onchange="gpsLocations[\''+key+'\'].lng=parseFloat(this.value);saveGpsLocations();renderPage()"></div>';
+    h+='<div class="mgr-row"><span class="mgr-label">Radius</span><select class="mgr-sel" onchange="gpsLocations[\''+key+'\'].radius=parseInt(this.value);saveGpsLocations();renderPage()">';
+    [100,200,300,500,750,1000].forEach(function(r){h+='<option value="'+r+'" '+(loc.radius===r?'selected':'')+'>'+r+'m</option>'});
+    h+='</select></div>';
+    h+='<div class="mgr-row"><span class="mgr-label">Icon</span><input class="mgr-inp" style="width:40px;text-align:center;font-size:16px" value="'+esc(loc.ico||'📍')+'" onchange="gpsLocations[\''+key+'\'].ico=this.value;saveGpsLocations();renderPage()"></div>';
+
+    h+='<div style="display:flex;gap:4px;margin-top:6px">';
+    if(gpsLat)h+='<button class="mgr-btn mgr-btn-primary" style="font-size:9px" onclick="gpsLocations[\''+key+'\'].lat='+gpsLat+';gpsLocations[\''+key+'\'].lng='+gpsLng+';saveGpsLocations();renderPage()">📍 Pin to current GPS</button>';
+    if(key!=='home'&&key!=='office')h+='<button class="mgr-btn mgr-btn-danger" style="font-size:9px" onclick="delete gpsLocations[\''+key+'\'];saveGpsLocations();renderPage()">Remove</button>';
+    h+='</div>';
+    h+='</div>';
+  });
+
+  // Add new location
+  h+='<button class="mgr-btn mgr-btn-ghost" style="width:100%;margin-top:6px" onclick="var k=\'loc_\'+Date.now();gpsLocations[k]={name:\'New Place\',lat:'+(gpsLat||35.7)+',lng:'+(gpsLng||139.9)+',radius:300,ico:\'📍\'};saveGpsLocations();renderPage()">+ Add location</button>';
   h+='</div>';
+
   return h;
 }
 
