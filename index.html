@@ -934,7 +934,7 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 
 /* Background Timers */
 .bg-timers{position:fixed;top:0;left:0;right:0;z-index:300;display:flex;flex-direction:column;gap:2px;pointer-events:none}
-.bg-timer-strip{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:11px;pointer-events:auto;animation:slideD .3s ease}
+.bg-timer-strip{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:11px;pointer-events:auto}
 .bg-timer-strip.running{background:linear-gradient(90deg,var(--accent)22,var(--accent)11)}
 .bg-timer-strip.done{background:linear-gradient(90deg,#DC262644,#DC262622);animation:timerPulse 1s ease infinite}
 @keyframes timerPulse{0%,100%{opacity:1}50%{opacity:.7}}
@@ -4889,21 +4889,25 @@ function bgTimerTick(){
     if(t.remainSec===0&&!t.fired){
       t.fired=true;
       bgTimerAlert(t);
-      // Vibrate pattern on completion
       if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
-      // Audio beep using Web Audio
       try{
         var ac=new(window.AudioContext||window.webkitAudioContext)();
         var osc=ac.createOscillator();osc.type='sine';osc.frequency.value=880;
         osc.connect(ac.destination);osc.start();osc.stop(ac.currentTime+0.3);
         setTimeout(function(){var o2=ac.createOscillator();o2.type='sine';o2.frequency.value=1100;o2.connect(ac.destination);o2.start();o2.stop(ac.currentTime+0.5)},400);
       }catch(e){}
+      bgTimerRenderStrip(); // full rebuild only when a timer completes
     }
   });
-  bgTimerRenderStrip();
-  if(!anyActive&&!bgTimers.some(function(t){return!t.fired})){
-    // All timers done or dismissed — keep ticker for strip updates
-  }
+  // Update only the time text elements (no innerHTML rebuild)
+  bgTimers.forEach(function(t){
+    var timeEl=document.getElementById('bgt_time_'+t.id);
+    if(timeEl){
+      var done=t.remainSec<=0;
+      timeEl.textContent=done?'DONE!':formatBgTime(t.remainSec);
+      timeEl.style.color=done?'#DC2626':'var(--accent)';
+    }
+  });
 }
 
 function bgTimerAlert(t){
@@ -4938,7 +4942,7 @@ function bgTimerRenderStrip(){
     h+='<div class="bg-timer-strip '+(done?'done':'running')+'">';
     h+='<span class="bg-timer-ico">'+t.ico+'</span>';
     h+='<span class="bg-timer-name">'+esc(t.label)+'</span>';
-    h+='<span class="bg-timer-time" style="color:'+(done?'#DC2626':'var(--accent)')+'">'+
+    h+='<span class="bg-timer-time" id="bgt_time_'+t.id+'" style="color:'+(done?'#DC2626':'var(--accent)')+'">'+
       (done?'DONE!':formatBgTime(t.remainSec))+'</span>';
     if(!done)h+='<button class="bg-timer-btn" onclick="bgTimerCancel(\''+t.id+'\')">✕</button>';
     else h+='<button class="bg-timer-btn" style="background:var(--accent)" onclick="bgTimerDismissAlert(\''+t.id+'\')">OK</button>';
