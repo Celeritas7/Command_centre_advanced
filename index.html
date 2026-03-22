@@ -4723,10 +4723,15 @@ function renderBrainStatus(){
   });
   h+='</div>';
 
+  // Tools
+  h+='<div style="background:var(--card);border-radius:10px;padding:12px;margin-top:8px;border:1.5px solid var(--as)">';
+  h+='<div style="font-size:9px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:6px">TOOLS</div>';
+  h+='<a href="rule-designer.html" target="_blank" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--as);border-radius:8px;text-decoration:none;color:var(--text)"><span style="font-size:16px">📊</span><div><div style="font-size:11px;font-weight:600">Rule Designer</div><div style="font-size:9px;color:var(--text2)">Visual timeline, clash detection, tier editor</div></div><span style="margin-left:auto;font-size:10px;color:var(--accent)">↗</span></a>';
+  h+='</div>';
+
   return h;
 }
 
-// ===== COMMUTE TAB =====
 function renderCommuteTab(){
   var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">🚃 Commute & GPS</div>';
   h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px">GPS location, train card visibility, and test mode</div>';
@@ -4756,7 +4761,7 @@ function renderCommuteTab(){
 
 // ===== TAKEOVER TAB =====
 function renderTakeoverTab(){
-  var h='<div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;margin-bottom:4px">⚡ Team Takeovers</div>';
+  var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><div style="font-family:Fraunces,serif;font-size:15px;font-weight:700;flex:1">⚡ Team Takeovers</div><a href="rule-designer.html" target="_blank" style="font-size:10px;font-weight:600;color:var(--accent);border:1.5px solid var(--as);padding:4px 10px;border-radius:6px;text-decoration:none">📊 Rule Designer ↗</a></div>';
   h+='<div style="font-size:10px;color:var(--text2);margin-bottom:12px;line-height:1.5">Teams take over the screen at set times. Hard lock = must complete. Soft lock = can skip (streak resets).</div>';
   Object.entries(takeoverConfig).forEach(function(e){
     var sqN=e[0],cfg=e[1],p=PERSONALITIES[sqN]||{ico:'❓',name:sqN};
