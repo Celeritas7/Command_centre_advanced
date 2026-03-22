@@ -158,8 +158,39 @@ const SQUADS=[
 function findSq(n){return SQUADS.find(function(s){return s.name===n})}
 
 // ===== STATE =====
-var page='takeover';
+var page='dayplans';
 var takeoverConfig={},streakData={},clashPriorities={Health:4,Sleep:4,Food:3,Exercise:3,Cleaning:3,'Manager Tasks':2,Reminders:2,'People Tasks':2,Executive:2,'App Gen':2,'Quick Study':2,'AI Study':2,Cost:1,Weather:1,Fashion:1,Psychology:1,'Eagle Eye':1,'Ghost Tracker':1,'Part Inventory':1};
+
+// Day Plans: base activity + scheduled interrupts per day type
+var dayPlans={
+  weekday:{
+    base:'work',
+    location:'office',
+    interrupts:[
+      {id:'wd1',time:'07:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Cook breakfast'},{ico:'🍱',text:'Prep lunch bento'}]},
+      {id:'wd2',time:'09:00',squad:'Manager Tasks',duration:10,hardLock:false,tasks:[{ico:'📨',text:'Check inbox'},{ico:'📋',text:'Update status'}]},
+      {id:'wd3',time:'12:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍱',text:'Eat lunch'},{ico:'💧',text:'Drink water'}]},
+      {id:'wd4',time:'17:30',squad:'Exercise',duration:15,hardLock:false,tasks:[{ico:'💪',text:'Quick workout'},{ico:'🧘',text:'Stretch'}]},
+      {id:'wd5',time:'19:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Cook dinner'},{ico:'🧹',text:'Clean kitchen'}]},
+      {id:'wd6',time:'22:00',squad:'Sleep',duration:10,hardLock:true,tasks:[{ico:'📴',text:'Screens off'},{ico:'🪥',text:'Brush teeth'},{ico:'⏰',text:'Set alarm'}]},
+    ]
+  },
+  weekend:{
+    base:'App Gen',
+    location:'home',
+    interrupts:[
+      {id:'we1',time:'06:00',squad:'Exercise',duration:15,hardLock:true,tasks:[{ico:'💪',text:'20 pushups'},{ico:'🦵',text:'30 squats'},{ico:'🧘',text:'Plank + stretch'}]},
+      {id:'we2',time:'07:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Cook breakfast'},{ico:'🧊',text:'Check fridge'}]},
+      {id:'we3',time:'12:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍱',text:'Cook lunch'},{ico:'💧',text:'Drink water'}]},
+      {id:'we4',time:'15:00',squad:'Exercise',duration:15,hardLock:true,tasks:[{ico:'🚶',text:'Walk 15 min'},{ico:'🧘',text:'Stretch'}]},
+      {id:'we5',time:'19:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Cook dinner'},{ico:'🗑️',text:'Take out trash'}]},
+      {id:'we6',time:'21:00',squad:'Cleaning',duration:15,hardLock:false,tasks:[{ico:'🧽',text:'Wipe surfaces'},{ico:'🍽️',text:'Dishes'},{ico:'🧹',text:'Sweep'}]},
+      {id:'we7',time:'21:30',squad:'Cost',duration:10,hardLock:false,tasks:[{ico:'💰',text:'Log expenses'},{ico:'📊',text:'Check budget'}]},
+      {id:'we8',time:'22:00',squad:'Sleep',duration:10,hardLock:true,tasks:[{ico:'📴',text:'Screens off'},{ico:'🪥',text:'Brush teeth'},{ico:'👕',text:'Prep tomorrow'}]},
+    ]
+  }
+};
+var activeDayType='weekend'; // which plan is being edited
 var clashRules={weekendShieldsUp:{enabled:true,beforeHour:13,description:'Defenders/Mid before Attackers until 1 PM'},creditEmergency:{enabled:true,threshold:10,description:'Force squad if credits below threshold'},streakProtection:{enabled:true,description:'Squad with 3+ day streak gets +1 tier boost'},moodOverride:{enabled:true,description:'Emergency → Health/Psychology become captains'}};
 var allTasks=[],playerMap={},timeSlotRules={},ofcBlLinks=[],ssMessages=[],ssTimeoutMin=15;
 var costTriggerCfg={timeTriggers:[],gpsShops:[],gpsCooldownMin:15,officeDeparture:{enabled:true,delayMin:2}};
@@ -169,6 +200,7 @@ var personalities={};
 
 // ===== NAV =====
 var NAV=[
+  {id:'dayplans',ico:'📅',name:'Day Plans',desc:'Base activity + interrupts'},
   {id:'takeover',ico:'⚡',name:'Takeover',desc:'Timeline + squad configs'},
   {id:'brain',ico:'🧠',name:'Brain',desc:'Personalities, clash, tiers'},
   {id:'bench',ico:'📋',name:'Bench',desc:'Tasks + categories'},
@@ -210,7 +242,7 @@ async function init(){
     (asm||[]).forEach(function(a){playerMap[a.name]=playerMap[a.name]||'attacker'});
     // Load brain settings
     var{data:bs}=await sb.from('command_centre_brain_settings').select('key,value');
-    (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{}});
+    (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{};if(r.key==='day_plans')dayPlans=r.value||dayPlans});
     // GPS
     if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy)},function(){},{timeout:8000});
   }catch(e){console.error('Init error:',e)}
@@ -222,6 +254,7 @@ async function saveMem(k,v){await sb.from('mind_map_app_chat_memory').upsert({ke
 async function saveTakeover(){await saveMem('cf_takeover_cfg',takeoverConfig)}
 async function saveClash(){await sb.from('command_centre_brain_settings').upsert({key:'clash_config',value:{priorities:clashPriorities,rules:clashRules}},{onConflict:'key'})}
 async function savePersonalities(){await sb.from('command_centre_brain_settings').upsert({key:'personalities',value:personalities},{onConflict:'key'})}
+async function saveDayPlans(){await sb.from('command_centre_brain_settings').upsert({key:'day_plans',value:dayPlans},{onConflict:'key'})}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function sSn(s){return s.replace(/'/g,"\\'")}
 function isWeekend(){var d=new Date().getDay();return d===0||d===6}
@@ -229,9 +262,226 @@ function isWeekend(){var d=new Date().getDay();return d===0||d===6}
 // ===== RENDER PAGE =====
 function renderPage(){
   var c=document.getElementById('content');
-  var r={takeover:pgTakeover,brain:pgBrain,bench:pgBench,rules:pgRules,settings:pgSettings,commute:pgCommute};
+  var r={dayplans:pgDayPlans,takeover:pgTakeover,brain:pgBrain,bench:pgBench,rules:pgRules,settings:pgSettings,commute:pgCommute};
   c.innerHTML=(r[page]||pgTakeover)();
   document.querySelector('.sidebar').classList.remove('open');
+}
+
+// ===== PAGE: DAY PLANS =====
+function pgDayPlans(){
+  var plan=dayPlans[activeDayType]||{base:'',location:'home',interrupts:[]};
+  var baseSq=findSq(plan.base);
+  var h='<div class="page-hdr"><div class="page-title">📅 Day Plans</div><div class="page-sub">Set a base activity for the whole day + scheduled interrupts that block it</div></div>';
+
+  // Day type tabs
+  h+='<div style="display:flex;gap:4px;margin-bottom:16px">';
+  ['weekday','weekend'].forEach(function(dt){
+    h+='<button class="mgr-toggle '+(activeDayType===dt?'on':'')+'" style="flex:1;justify-content:center;padding:8px;font-size:12px" onclick="activeDayType=\''+dt+'\';renderPage()">'+(dt==='weekday'?'📅 Weekday':'🌴 Weekend')+'</button>';
+  });
+  h+='</div>';
+
+  // Base activity
+  h+='<div class="mgr-card" style="border-color:var(--amber)">';
+  h+='<div class="mgr-card-hd"><span style="font-size:18px">'+(baseSq?baseSq.ico:'🎯')+'</span>Base Activity<span style="margin-left:auto;font-size:9px;padding:2px 8px;border-radius:6px;background:var(--amber);color:var(--bg)">ALL DAY</span></div>';
+  h+='<div class="mgr-card-sub">This squad owns the entire day. No timer — it runs continuously until an interrupt fires. After each interrupt completes, this resumes automatically.</div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Squad</span><select class="mgr-sel" style="flex:1" onchange="dayPlans[activeDayType].base=this.value;saveDayPlans();renderPage()">';
+  h+='<option value="">— None (schedule-driven) —</option>';
+  SQUADS.forEach(function(s){h+='<option value="'+s.name+'" '+(plan.base===s.name?'selected':'')+'>'+s.ico+' '+s.name+'</option>'});
+  h+='</select></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Location</span><div style="display:flex;gap:4px">';
+  ['home','office','outside'].forEach(function(l){
+    var on=plan.location===l;
+    h+='<button class="mgr-toggle '+(on?'on':'')+'" onclick="dayPlans[activeDayType].location=\''+l+'\';saveDayPlans();renderPage()">'+(({home:'🏠 Home',office:'🏢 Office',outside:'🌳 Outside'})[l])+'</button>';
+  });
+  h+='</div></div></div>';
+
+  // Visual day timeline
+  h+=renderDayTimeline(plan);
+
+  // Interrupts list
+  h+='<div style="display:flex;align-items:center;gap:8px;margin:20px 0 12px"><span style="font-family:Fraunces,serif;font-size:16px;font-weight:700">Scheduled Interrupts</span><span style="font-size:10px;color:var(--text2)">'+(plan.interrupts||[]).length+' configured</span></div>';
+
+  (plan.interrupts||[]).sort(function(a,b){return a.time.localeCompare(b.time)}).forEach(function(intr,i){
+    var sq=findSq(intr.squad);
+    var cls=sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid';
+    var borderCol=cls==='atk'?'var(--atkC)':cls==='def'?'var(--defC)':'var(--midC)';
+
+    h+='<div class="mgr-card" style="border-left:3px solid '+borderCol+';padding:12px">';
+    // Header
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+    h+='<span style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--amber);min-width:50px">'+intr.time+'</span>';
+    h+='<span style="font-size:16px">'+(sq?sq.ico:'❓')+'</span>';
+    h+='<span style="font-size:12px;font-weight:700;flex:1">'+(intr.squad||'Unset')+'</span>';
+    h+='<span style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;'+(intr.hardLock?'background:rgba(226,75,74,.15);color:var(--red)':'background:var(--amberBg);color:var(--amber)')+'">'+( intr.hardLock?'🔴 HARD':'🟡 SOFT')+'</span>';
+    h+='<span style="font-size:9px;color:var(--text2)">'+intr.duration+'min</span>';
+    h+='</div>';
+
+    // Config rows
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">';
+    h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:40px">Time</span><input class="mgr-inp" type="time" value="'+intr.time+'" onchange="dayPlans[activeDayType].interrupts['+i+'].time=this.value;saveDayPlans();renderPage()"></div>';
+    h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:40px">Squad</span><select class="mgr-sel" onchange="dayPlans[activeDayType].interrupts['+i+'].squad=this.value;saveDayPlans();renderPage()">';
+    SQUADS.forEach(function(s){h+='<option value="'+s.name+'" '+(intr.squad===s.name?'selected':'')+'>'+s.ico+' '+s.name+'</option>'});
+    h+='</select></div>';
+    h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:30px">Dur</span><select class="mgr-sel" onchange="dayPlans[activeDayType].interrupts['+i+'].duration=parseInt(this.value);saveDayPlans();renderPage()">';
+    [5,10,15,20,30,45,60].forEach(function(m){h+='<option value="'+m+'" '+(intr.duration===m?'selected':'')+'>'+m+'m</option>'});
+    h+='</select></div>';
+    h+='<button class="mgr-toggle '+(intr.hardLock?'on':'')+'" style="'+(intr.hardLock?'background:var(--red);border-color:var(--red)':'')+'" onclick="dayPlans[activeDayType].interrupts['+i+'].hardLock=!dayPlans[activeDayType].interrupts['+i+'].hardLock;saveDayPlans();renderPage()">'+(intr.hardLock?'Hard':'Soft')+'</button>';
+    h+='</div>';
+
+    // Tasks
+    h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-bottom:4px">Checklist ('+(intr.tasks||[]).length+')</div>';
+    (intr.tasks||[]).forEach(function(t,ti){
+      h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:2px"><input class="mgr-inp" style="width:24px;text-align:center;font-size:12px" value="'+esc(t.ico)+'" onchange="dayPlans[activeDayType].interrupts['+i+'].tasks['+ti+'].ico=this.value;saveDayPlans()"><input class="mgr-inp" style="flex:1" value="'+esc(t.text)+'" onchange="dayPlans[activeDayType].interrupts['+i+'].tasks['+ti+'].text=this.value;saveDayPlans()"><button class="mgr-btn mgr-btn-danger" style="padding:1px 5px;font-size:8px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.splice('+ti+',1);saveDayPlans();renderPage()">✕</button></div>';
+    });
+    h+='<div style="display:flex;gap:4px;margin-top:4px"><button class="mgr-btn mgr-btn-ghost" style="font-size:8px;padding:2px 8px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.push({ico:\'📋\',text:\'New task\'});saveDayPlans();renderPage()">+ Task</button>';
+    h+='<button class="mgr-btn mgr-btn-danger" style="font-size:8px;padding:2px 8px;margin-left:auto" onclick="dayPlans[activeDayType].interrupts.splice('+i+',1);saveDayPlans();renderPage()">Remove interrupt</button></div>';
+    h+='</div>';
+  });
+
+  // Add interrupt
+  h+='<div class="mgr-card" style="border-style:dashed;text-align:center;cursor:pointer;padding:16px" onclick="addInterrupt()">';
+  h+='<div style="font-size:14px;margin-bottom:4px">+</div>';
+  h+='<div style="font-size:11px;color:var(--text2)">Add interrupt</div>';
+  h+='</div>';
+
+  // Quick presets
+  h+='<div class="mgr-card"><div class="mgr-card-hd">🎯 Quick Presets</div><div class="mgr-card-sub">Apply a preset template to the current day plan</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'deepWork\')">💻 Deep Work Day</button>';
+  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'balanced\')">⚖️ Balanced Day</button>';
+  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'recovery\')">🧘 Recovery Day</button>';
+  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'office\')">🏢 Office Day</button>';
+  h+='</div></div>';
+
+  return h;
+}
+
+function renderDayTimeline(plan){
+  var h='<div class="tl-wrap" style="margin-top:12px">';
+  // Hours header 5-23
+  h+='<div class="tl-header"><div class="tl-label-col" style="min-width:60px"></div><div class="tl-hours">';
+  for(var i=5;i<=23;i++)h+='<div class="tl-hour'+(i===new Date().getHours()?' now':'')+'">'+String(i).padStart(2,'0')+'</div>';
+  h+='</div></div>';
+
+  // Base row
+  var baseSq=findSq(plan.base);
+  var baseCls=baseSq?(baseSq.type==='attacker'?'atk':baseSq.type==='midfielder'?'mid':'def'):'atk';
+  h+='<div class="tl-row"><div class="tl-row-label" style="min-width:60px"><span style="font-size:9px;font-weight:700">BASE</span></div><div class="tl-track">';
+  if(plan.base){
+    h+='<div class="tl-bar '+baseCls+'" style="left:0%;width:100%;opacity:.25;font-size:8px">'+(baseSq?baseSq.ico:'')+' '+plan.base+' (all day)</div>';
+  }
+  // Overlay interrupts on the base
+  (plan.interrupts||[]).forEach(function(intr){
+    var parts=intr.time.split(':');var hr=parseInt(parts[0]),mn=parseInt(parts[1]||0);
+    var startPct=((hr-5+mn/60)/18)*100;
+    var widthPct=Math.max((intr.duration/60/18)*100,2);
+    var sq=findSq(intr.squad);
+    var cls=sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid';
+    h+='<div class="tl-bar '+cls+'" style="left:'+startPct+'%;width:'+widthPct+'%;font-size:7px;z-index:2" title="'+intr.squad+' at '+intr.time+' ('+intr.duration+'min)">'+(sq?sq.ico:'')+' '+String(hr).padStart(2,'0')+':'+String(mn).padStart(2,'0')+'</div>';
+  });
+  // Now line
+  var nowH=new Date().getHours(),nowM=new Date().getMinutes();
+  if(nowH>=5&&nowH<=23)h+='<div class="tl-now" style="left:'+((nowH-5+nowM/60)/18*100)+'%"></div>';
+  h+='</div></div>';
+
+  // Interrupt rows (one per unique squad in interrupts)
+  var usedSquads={};
+  (plan.interrupts||[]).forEach(function(intr){
+    if(usedSquads[intr.squad])return;usedSquads[intr.squad]=true;
+    var sq=findSq(intr.squad);
+    var cls=sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid';
+    h+='<div class="tl-row"><div class="tl-row-label" style="min-width:60px"><span style="font-size:10px">'+(sq?sq.ico:'')+'</span><span style="font-size:8px">'+intr.squad+'</span></div><div class="tl-track">';
+    (plan.interrupts||[]).filter(function(x){return x.squad===intr.squad}).forEach(function(x){
+      var pts=x.time.split(':');var xhr=parseInt(pts[0]),xmn=parseInt(pts[1]||0);
+      var sp=((xhr-5+xmn/60)/18)*100;var wp=Math.max((x.duration/60/18)*100,2);
+      h+='<div class="tl-bar '+cls+'" style="left:'+sp+'%;width:'+wp+'%;font-size:7px" title="'+x.duration+'min '+(x.hardLock?'HARD':'soft')+'">'+String(xhr).padStart(2,'0')+':'+String(xmn).padStart(2,'0')+'</div>';
+    });
+    if(nowH>=5&&nowH<=23)h+='<div class="tl-now" style="left:'+((nowH-5+nowM/60)/18*100)+'%"></div>';
+    h+='</div></div>';
+  });
+
+  h+='</div>';
+
+  // Summary stats
+  var totalInt=(plan.interrupts||[]).reduce(function(s,x){return s+x.duration},0);
+  var hardCount=(plan.interrupts||[]).filter(function(x){return x.hardLock}).length;
+  var baseHrs=Math.max(0,Math.round((18*60-totalInt)/60*10)/10);
+  h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;margin-bottom:8px">';
+  h+='<div style="background:var(--card);border:1px solid var(--amberBd);border-radius:8px;padding:8px 14px;flex:1;min-width:100px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--amber)">'+baseHrs+'h</div><div style="font-size:9px;color:var(--text2)">Base activity time</div></div>';
+  h+='<div style="background:var(--card);border:1px solid var(--amberBd);border-radius:8px;padding:8px 14px;flex:1;min-width:100px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--red)">'+totalInt+'min</div><div style="font-size:9px;color:var(--text2)">Total interrupt time</div></div>';
+  h+='<div style="background:var(--card);border:1px solid var(--amberBd);border-radius:8px;padding:8px 14px;flex:1;min-width:100px;text-align:center"><div style="font-size:18px;font-weight:700">'+hardCount+'</div><div style="font-size:9px;color:var(--text2)">Hard locks</div></div>';
+  h+='</div>';
+
+  return h;
+}
+
+function addInterrupt(){
+  var plan=dayPlans[activeDayType];
+  if(!plan.interrupts)plan.interrupts=[];
+  plan.interrupts.push({
+    id:'int_'+Date.now(),
+    time:'12:00',
+    squad:'Food',
+    duration:30,
+    hardLock:true,
+    tasks:[{ico:'📋',text:'New task'}]
+  });
+  saveDayPlans();renderPage();
+}
+
+function applyPreset(name){
+  var plan=dayPlans[activeDayType];
+  if(name==='deepWork'){
+    plan.base='App Gen';plan.location='home';
+    plan.interrupts=[
+      {id:'dw1',time:'06:00',squad:'Exercise',duration:15,hardLock:true,tasks:[{ico:'💪',text:'Quick workout'},{ico:'🧘',text:'Stretch'}]},
+      {id:'dw2',time:'07:00',squad:'Food',duration:20,hardLock:true,tasks:[{ico:'🍳',text:'Breakfast'},{ico:'☕',text:'Coffee'}]},
+      {id:'dw3',time:'12:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍱',text:'Lunch'},{ico:'💧',text:'Water'}]},
+      {id:'dw4',time:'15:00',squad:'Health',duration:10,hardLock:false,tasks:[{ico:'👀',text:'Rest eyes 5 min'},{ico:'🚶',text:'Walk'}]},
+      {id:'dw5',time:'19:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Dinner'},{ico:'🧹',text:'Clean up'}]},
+      {id:'dw6',time:'21:00',squad:'Cleaning',duration:15,hardLock:false,tasks:[{ico:'🧽',text:'Wipe surfaces'},{ico:'🍽️',text:'Dishes'}]},
+      {id:'dw7',time:'22:00',squad:'Sleep',duration:10,hardLock:true,tasks:[{ico:'📴',text:'Screens off'},{ico:'🪥',text:'Brush teeth'}]},
+    ];
+  }else if(name==='balanced'){
+    plan.base='';plan.location='home';
+    plan.interrupts=[
+      {id:'bl1',time:'06:00',squad:'Exercise',duration:30,hardLock:true,tasks:[{ico:'💪',text:'Full workout'}]},
+      {id:'bl2',time:'07:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Cook breakfast'}]},
+      {id:'bl3',time:'08:00',squad:'Executive',duration:30,hardLock:false,tasks:[{ico:'📄',text:'Resume/LinkedIn'}]},
+      {id:'bl4',time:'09:00',squad:'App Gen',duration:120,hardLock:false,tasks:[{ico:'💻',text:'Code session'}]},
+      {id:'bl5',time:'12:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍱',text:'Lunch'}]},
+      {id:'bl6',time:'13:00',squad:'Quick Study',duration:60,hardLock:false,tasks:[{ico:'📖',text:'Read + notes'}]},
+      {id:'bl7',time:'15:00',squad:'Fashion',duration:15,hardLock:false,tasks:[{ico:'👔',text:'Wardrobe check'}]},
+      {id:'bl8',time:'16:00',squad:'App Gen',duration:120,hardLock:false,tasks:[{ico:'💻',text:'Code session 2'}]},
+      {id:'bl9',time:'19:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Dinner'}]},
+      {id:'bla',time:'20:00',squad:'Quick Study',duration:60,hardLock:false,tasks:[{ico:'📖',text:'Evening study'}]},
+      {id:'blb',time:'21:00',squad:'Cleaning',duration:15,hardLock:false,tasks:[{ico:'🧹',text:'Clean'}]},
+      {id:'blc',time:'22:00',squad:'Sleep',duration:10,hardLock:true,tasks:[{ico:'📴',text:'Wind down'}]},
+    ];
+  }else if(name==='recovery'){
+    plan.base='Psychology';plan.location='home';
+    plan.interrupts=[
+      {id:'rc1',time:'08:00',squad:'Food',duration:30,hardLock:false,tasks:[{ico:'🍳',text:'Easy breakfast'}]},
+      {id:'rc2',time:'10:00',squad:'Exercise',duration:15,hardLock:false,tasks:[{ico:'🚶',text:'Gentle walk'},{ico:'🧘',text:'Stretch'}]},
+      {id:'rc3',time:'13:00',squad:'Food',duration:30,hardLock:false,tasks:[{ico:'🍱',text:'Lunch'}]},
+      {id:'rc4',time:'19:00',squad:'Food',duration:30,hardLock:false,tasks:[{ico:'🍳',text:'Dinner'}]},
+      {id:'rc5',time:'22:00',squad:'Sleep',duration:10,hardLock:true,tasks:[{ico:'📴',text:'Early sleep'}]},
+    ];
+  }else if(name==='office'){
+    plan.base='work';plan.location='office';
+    plan.interrupts=[
+      {id:'of1',time:'07:00',squad:'Food',duration:20,hardLock:true,tasks:[{ico:'🍳',text:'Breakfast + bento'}]},
+      {id:'of2',time:'09:00',squad:'Manager Tasks',duration:15,hardLock:false,tasks:[{ico:'📨',text:'Inbox'}]},
+      {id:'of3',time:'11:00',squad:'Eagle Eye',duration:10,hardLock:false,tasks:[{ico:'🦅',text:'ECN check'}]},
+      {id:'of4',time:'12:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍱',text:'Lunch'}]},
+      {id:'of5',time:'13:00',squad:'Ghost Tracker',duration:10,hardLock:false,tasks:[{ico:'👻',text:'Build status'}]},
+      {id:'of6',time:'15:00',squad:'Part Inventory',duration:10,hardLock:false,tasks:[{ico:'🔩',text:'Stock check'}]},
+      {id:'of7',time:'18:00',squad:'Quick Study',duration:30,hardLock:false,tasks:[{ico:'📖',text:'Evening study'}]},
+      {id:'of8',time:'19:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Dinner'}]},
+      {id:'of9',time:'22:00',squad:'Sleep',duration:10,hardLock:true,tasks:[{ico:'📴',text:'Wind down'}]},
+    ];
+  }
+  saveDayPlans();renderPage();
 }
 
 // ===== PAGE: TAKEOVER =====
