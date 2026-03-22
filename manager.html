@@ -239,11 +239,21 @@ async function init(){
         if(m.key==='cf_custom_squads')customSquads=JSON.parse(m.value);
       }catch(e){}
     });
-    // Load tasks + assemblies for bench
-    var{data:tasks}=await sb.from('mind_map_app_tasks').select('id,name,status,assembly_id,parent_id,is_recurring,links,notes').eq('status','active');
+    // Load tasks + tags for bench
+    var{data:tasks}=await sb.from('mind_map_app_tasks').select('id,name,status,assembly_id,parent_id,is_recurring,links,notes').neq('status','done');
     allTasks=tasks||[];
-    var{data:asm}=await sb.from('mind_map_app_assemblies').select('id,name');
-    (asm||[]).forEach(function(a){playerMap[a.name]=playerMap[a.name]||'attacker'});
+    var{data:tags}=await sb.from('mind_map_app_tags').select('id,name,type');
+    var allTagsMgr=tags||[];
+    var{data:ttData}=await sb.from('mind_map_app_task_tags').select('task_id,tag_id');
+    var taskTagsMgr={};(ttData||[]).forEach(function(tt){if(!taskTagsMgr[tt.task_id])taskTagsMgr[tt.task_id]=[];taskTagsMgr[tt.task_id].push(tt.tag_id)});
+    // Build category lookup
+    var catTagMap={};allTagsMgr.filter(function(t){return t.type==='category'}).forEach(function(t){catTagMap[t.id]=t.name});
+    // Attach category to each task
+    allTasks.forEach(function(t){
+      var tagIds=taskTagsMgr[t.id]||[];
+      t._category='';
+      for(var k=0;k<tagIds.length;k++){if(catTagMap[tagIds[k]]){t._category=catTagMap[tagIds[k]];break}}
+    });
     // Load brain settings
     var{data:bs}=await sb.from('command_centre_brain_settings').select('key,value');
     (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{};if(r.key==='day_plans')dayPlans=r.value||dayPlans;if(r.key==='gps_locations')gpsLocations=r.value||gpsLocations});
@@ -691,20 +701,29 @@ function pgBrain(){
 
 // ===== PAGE: BENCH =====
 function pgBench(){
-  var h='<div class="page-hdr"><div class="page-title">📋 Bench</div><div class="page-sub">Tasks and categories overview — edit in the main app</div></div>';
-  // Group tasks by assembly/category
+  var h='<div class="page-hdr"><div class="page-title">📋 Bench</div><div class="page-sub">Tasks and categories — grouped by squad</div></div>';
+  // Group tasks by _category
   var cats={};
-  allTasks.forEach(function(t){var c=t.assembly_id||'uncategorized';if(!cats[c])cats[c]=[];cats[c].push(t)});
+  allTasks.forEach(function(t){var c=t._category||'Uncategorized';if(!cats[c])cats[c]=[];cats[c].push(t)});
+  var catNames=Object.keys(cats).sort(function(a,b){return a==='Uncategorized'?1:b==='Uncategorized'?-1:a.localeCompare(b)});
   var total=allTasks.length;
-  h+='<div class="mgr-card"><div class="mgr-card-hd">📊 Summary</div><div style="display:flex;gap:16px;font-size:12px"><span>Total active: <strong>'+total+'</strong></span><span>Categories: <strong>'+Object.keys(cats).length+'</strong></span></div></div>';
-  Object.entries(cats).forEach(function(e){
-    var catId=e[0],tasks=e[1];
-    h+='<div class="mgr-card" style="padding:12px"><div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="var el=document.getElementById(\'cat_'+catId+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'"><span style="font-size:12px;font-weight:700;flex:1">'+(catId==='uncategorized'?'📦 Uncategorized':catId)+'</span><span class="bench-count">'+tasks.length+'</span></div>';
-    h+='<div id="cat_'+catId+'" style="display:none;margin-top:8px">';
-    tasks.slice(0,20).forEach(function(t){
-      h+='<div class="task-item"><div class="task-pri" style="background:'+(t.status==='done'?'var(--green)':'var(--amber)')+'"></div><span style="flex:1">'+esc(t.name)+'</span><span style="font-size:9px;color:var(--text3)">'+t.status+'</span></div>';
+  h+='<div class="mgr-card"><div class="mgr-card-hd">📊 Summary</div><div style="display:flex;gap:16px;font-size:12px"><span>Total active: <strong>'+total+'</strong></span><span>Categories: <strong>'+(catNames.length-(cats['Uncategorized']?1:0))+'</strong></span></div></div>';
+  catNames.forEach(function(catName){
+    var tasks=cats[catName];
+    var sq=findSq(catName);
+    var ico=sq?sq.ico:'📦';
+    var cls=sq?(sq.type==='attacker'?'var(--atkC)':sq.type==='midfielder'?'var(--midC)':'var(--defC)'):'var(--text3)';
+    var safeId=catName.replace(/[^a-zA-Z0-9]/g,'_');
+    h+='<div class="mgr-card" style="padding:12px;border-left:3px solid '+cls+'">';
+    h+='<div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="var el=document.getElementById(\'cat_'+safeId+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
+    h+='<span style="font-size:16px">'+ico+'</span>';
+    h+='<span style="font-size:12px;font-weight:700;flex:1">'+esc(catName)+'</span>';
+    h+='<span class="bench-count">'+tasks.length+'</span>';
+    h+='<span style="font-size:10px;color:var(--text3)">▸</span></div>';
+    h+='<div id="cat_'+safeId+'" style="display:none;margin-top:8px">';
+    tasks.forEach(function(t){
+      h+='<div class="task-item"><div class="task-pri" style="background:var(--amber)"></div><span style="flex:1">'+esc(t.name)+'</span><span style="font-size:9px;color:var(--text3)">'+t.status+'</span></div>';
     });
-    if(tasks.length>20)h+='<div style="font-size:9px;color:var(--text3);padding:4px 8px">...and '+(tasks.length-20)+' more</div>';
     h+='</div></div>';
   });
   return h;

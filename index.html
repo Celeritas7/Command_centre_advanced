@@ -3680,8 +3680,17 @@ function benchHTML(t){
   const rnk=cat?getRank(cat,t.id):-1;const isRanked=rnk>=0;
   const cl=inCD?cooldownLeft(t):{v:0,u:'h'};const rHrs=getRegenHours(t);
   const delBtn=`<button style="border:none;background:none;font-size:11px;cursor:pointer;color:#DC2626;opacity:.35;flex-shrink:0;padding:2px 4px" onclick="event.stopPropagation();askDelete('${t.id}')">&#128465;</button>`;
+  // Rank controls: add to pitch OR move up/down/remove
+  let rankBtn='';
+  if(!isDone&&!inCD&&cat){
+    if(isRanked){
+      rankBtn=`<div style="display:flex;align-items:center;gap:2px;flex-shrink:0"><span class="rank-badge">${rnk+1}</span><button style="border:none;background:none;font-size:10px;cursor:pointer;color:var(--accent);padding:0 2px" onclick="event.stopPropagation();moveRankUp('${cat.replace(/'/g,"\\'")}','${t.id}');renderOv()">▲</button><button style="border:none;background:none;font-size:10px;cursor:pointer;color:var(--accent);padding:0 2px" onclick="event.stopPropagation();moveRankDown('${cat.replace(/'/g,"\\'")}','${t.id}');renderOv()">▼</button><button style="border:none;background:none;font-size:9px;cursor:pointer;color:#DC2626;opacity:.4;padding:0 2px" onclick="event.stopPropagation();removeRank('${cat.replace(/'/g,"\\'")}','${t.id}');renderOv()">✕</button></div>`;
+    }else{
+      rankBtn=`<button style="border:none;background:var(--as);color:var(--accent);border-radius:6px;font-size:9px;font-weight:700;cursor:pointer;padding:3px 8px;flex-shrink:0;font-family:'DM Sans',sans-serif" onclick="event.stopPropagation();addRank('${cat.replace(/'/g,"\\'")}','${t.id}');renderOv()">⚽</button>`;
+    }
+  }
   if(inCD)return`<div class="bench-task done" style="opacity:.45"><div class="bench-pbar" style="background:#8B5CF6"></div><div class="bench-cb checked" style="pointer-events:none"></div><div class="bench-info"><div class="bench-title">${esc(t.name)}</div><div class="bench-meta"><span class="bench-tag" style="background:#8B5CF622;color:#8B5CF6">&#8635; ${cl.v}${cl.u} left</span>${cat?`<span class="bench-tag" style="background:var(--as);color:var(--accent)">${cat}</span>`:''}</div></div>${delBtn}</div>`;
-  return`<div class="bench-task ${isDone?'done':''}"><div class="bench-pbar" style="background:${priColor(pri)}"></div><div class="bench-cb ${isDone?'checked':''}" onclick="toggleTask('${t.id}')"></div><div class="bench-info"><div class="bench-title">${esc(t.name)}</div><div class="bench-meta">${cat?`<span class="bench-tag" style="background:${priColor(pri)}22;color:${priColor(pri)}">${pri}</span><span class="bench-tag" style="background:var(--as);color:var(--accent)">${cat}</span>`:''}</div></div>${!isDone&&isRanked?`<span class="rank-badge">${rnk+1}</span>`:''} ${delBtn}</div>`;
+  return`<div class="bench-task ${isDone?'done':''}"><div class="bench-pbar" style="background:${priColor(pri)}"></div><div class="bench-cb ${isDone?'checked':''}" onclick="toggleTask('${t.id}')"></div><div class="bench-info"><div class="bench-title">${esc(t.name)}</div><div class="bench-meta">${cat?`<span class="bench-tag" style="background:${priColor(pri)}22;color:${priColor(pri)}">${pri}</span><span class="bench-tag" style="background:var(--as);color:var(--accent)">${cat}</span>`:''}</div></div>${rankBtn} ${delBtn}</div>`;
 }
 
 // ===== DECISION CENTRE =====
