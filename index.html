@@ -4869,6 +4869,41 @@ function renderTakeoverTab(){
 let bgTimers=[]; // [{id, taskId, taskName, label, totalSec, remainSec, startedAt, ico}]
 let bgTickerInt=null;
 
+function bgTimerSave(){
+  try{localStorage.setItem('cc_bg_timers',JSON.stringify(bgTimers.map(function(t){return{id:t.id,taskId:t.taskId,taskName:t.taskName,label:t.label,totalSec:t.totalSec,startedAt:t.startedAt,ico:t.ico}})))}catch(e){}
+}
+function bgTimerRestore(){
+  try{
+    var saved=JSON.parse(localStorage.getItem('cc_bg_timers')||'[]');
+    saved.forEach(function(s){
+      var elapsed=Math.floor((Date.now()-s.startedAt)/1000);
+      var remain=s.totalSec-elapsed;
+      if(remain<=0){
+        // Timer expired while page was closed — fire alert now
+        var t={id:s.id,taskId:s.taskId,taskName:s.taskName,label:s.label,totalSec:s.totalSec,remainSec:0,startedAt:s.startedAt,ico:s.ico,fired:true};
+        bgTimers.push(t);
+        bgTimerAlert(t);
+      } else {
+        var t={id:s.id,taskId:s.taskId,taskName:s.taskName,label:s.label,totalSec:s.totalSec,remainSec:remain,startedAt:s.startedAt,ico:s.ico};
+        // Re-schedule background fallback for remaining time
+        t._bgTimeout=setTimeout(function(){
+          if(t.fired)return;t.remainSec=0;t.fired=true;
+          bgTimerAlert(t);
+          if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
+          bgTimerRenderStrip();bgTimerSave();
+        },remain*1000);
+        bgTimers.push(t);
+      }
+    });
+    if(bgTimers.length){
+      if(!bgTickerInt)bgTickerInt=setInterval(bgTimerTick,1000);
+      bgTimerRenderStrip();
+    }
+    // Clean up completed timers from storage
+    bgTimerSave();
+  }catch(e){}
+}
+
 function bgTimerStart(taskId,taskName,totalSec,label,ico){
   // Remove existing timer for same task
   bgTimers=bgTimers.filter(t=>{if(t.taskId===taskId&&t._bgTimeout)clearTimeout(t._bgTimeout);return t.taskId!==taskId});
@@ -4887,11 +4922,11 @@ function bgTimerStart(taskId,taskName,totalSec,label,ico){
       var osc=ac.createOscillator();osc.type='sine';osc.frequency.value=880;
       osc.connect(ac.destination);osc.start();osc.stop(ac.currentTime+0.3);
     }catch(e){}
-    bgTimerRenderStrip();
+    bgTimerRenderStrip();bgTimerSave();
   },totalSec*1000);
   bgTimers.push(timer);
   if(!bgTickerInt)bgTickerInt=setInterval(bgTimerTick,1000);
-  bgTimerRenderStrip();
+  bgTimerRenderStrip();bgTimerSave();
   // Vibrate on start
   if(navigator.vibrate)navigator.vibrate(100);
   // Request notification permission on first timer
@@ -4914,7 +4949,7 @@ function bgTimerTick(){
         osc.connect(ac.destination);osc.start();osc.stop(ac.currentTime+0.3);
         setTimeout(function(){var o2=ac.createOscillator();o2.type='sine';o2.frequency.value=1100;o2.connect(ac.destination);o2.start();o2.stop(ac.currentTime+0.5)},400);
       }catch(e){}
-      bgTimerRenderStrip(); // full rebuild only when a timer completes
+      bgTimerRenderStrip();bgTimerSave(); // full rebuild only when a timer completes
     }
   });
   // Update only the time text elements (no innerHTML rebuild)
@@ -4959,13 +4994,13 @@ function bgTimerDismissAlert(id){
   document.getElementById('bgTimerAlert').innerHTML='';
   bgTimers.forEach(function(t){if(t.id===id&&t._bgTimeout)clearTimeout(t._bgTimeout)});
   bgTimers=bgTimers.filter(function(t){return t.id!==id});
-  bgTimerRenderStrip();
+  bgTimerRenderStrip();bgTimerSave();
 }
 
 function bgTimerCancel(id){
   bgTimers.forEach(function(t){if(t.id===id&&t._bgTimeout)clearTimeout(t._bgTimeout)});
   bgTimers=bgTimers.filter(function(t){return t.id!==id});
-  bgTimerRenderStrip();
+  bgTimerRenderStrip();bgTimerSave();
 }
 
 function bgTimerRenderStrip(){
@@ -5032,6 +5067,8 @@ async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(up
   document.getElementById('loadingView').style.display='none';document.getElementById('pitch').style.display='';document.getElementById('cornerBtn').style.display='';document.getElementById('mgrBtn').style.display='';document.getElementById('appLaunchBtn').style.display='';document.getElementById('emgBtn').style.display='';checkPoss();ofcUpdateBlockers();ssInitListeners();gpsCheck();renderPitch();setTimeout(tkvCheck,3000);
   // CC Brain — nervous system init
   if(typeof CC_BRAIN!=='undefined') CC_BRAIN.init({mode:'native',sb});
+  // Restore background timers from localStorage
+  bgTimerRestore();
 }
 init();
 </script>
