@@ -934,6 +934,16 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 
 /* Background Timers */
 .bg-timers{position:fixed;top:0;left:0;right:0;z-index:300;display:flex;flex-direction:column;gap:2px;pointer-events:none}
+
+/* Sleep Gate */
+.sleep-gate{display:none;position:fixed;inset:0;z-index:99999;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;background:linear-gradient(160deg,#0a0a1a,#0d0d2b,#0a0a1a);user-select:none}
+.sleep-gate.show{display:flex}
+.sleep-gate-moon{font-size:64px;margin-bottom:16px;animation:moonFloat 4s ease-in-out infinite}
+@keyframes moonFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.sleep-gate-title{font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:#c4b5fd;margin-bottom:6px}
+.sleep-gate-msg{font-size:13px;color:#7c7c9a;line-height:1.8;max-width:280px;margin-bottom:24px}
+.sleep-gate-time{font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:700;color:#312e81;margin-bottom:8px}
+.sleep-gate-unlock{font-size:11px;color:#4c4c6a}
 .bg-timer-strip{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:11px;pointer-events:auto}
 .bg-timer-strip.running{background:linear-gradient(90deg,var(--accent)22,var(--accent)11)}
 .bg-timer-strip.done{background:linear-gradient(90deg,#DC262644,#DC262622);animation:timerPulse 1s ease infinite}
@@ -957,6 +967,15 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 </style>
 </head>
 <body>
+<!-- SLEEP GATE -->
+<div class="sleep-gate" id="sleepGate">
+  <div class="sleep-gate-moon">🌙</div>
+  <div class="sleep-gate-title">Sleep Mode Active</div>
+  <div class="sleep-gate-msg">Command Centre is locked between 10:00 PM and 4:00 AM.<br><br>Your body needs rest. The pitch will be here tomorrow.<br><br>Put the phone down.</div>
+  <div class="sleep-gate-time" id="sleepGateTime">--:--</div>
+  <div class="sleep-gate-unlock" id="sleepGateUnlock">Unlocks at 04:00 AM</div>
+</div>
+
 <div class="app">
   <div class="loading" id="loadingView"><div class="loading-spinner"></div><div class="loading-text">Command Centre loading...</div></div>
   <div class="pitch" id="pitch" style="display:none">
@@ -1013,6 +1032,17 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
       <div class="regen-chip" data-h="336" onclick="selectRegenHours(336)">2 weeks</div>
       <div class="regen-chip" data-h="720" onclick="selectRegenHours(720)">Monthly</div>
     </div>
+    <div style="font-size:9px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;margin-top:6px">📆 On specific days</div>
+    <div class="regen-chips" id="regenDayChips">
+      <div class="regen-chip regen-day" data-day="1" onclick="toggleRegenDay(1)">Mon</div>
+      <div class="regen-chip regen-day" data-day="2" onclick="toggleRegenDay(2)">Tue</div>
+      <div class="regen-chip regen-day" data-day="3" onclick="toggleRegenDay(3)">Wed</div>
+      <div class="regen-chip regen-day" data-day="4" onclick="toggleRegenDay(4)">Thu</div>
+      <div class="regen-chip regen-day" data-day="5" onclick="toggleRegenDay(5)">Fri</div>
+      <div class="regen-chip regen-day" data-day="6" onclick="toggleRegenDay(6)">Sat</div>
+      <div class="regen-chip regen-day" data-day="0" onclick="toggleRegenDay(0)">Sun</div>
+    </div>
+    <div id="regenDayInfo" style="font-size:9px;color:var(--accent);margin-bottom:6px;display:none"></div>
     <div style="display:flex;gap:6px;margin-bottom:12px;margin-top:8px">
       <input class="regen-custom" id="regenCustom" type="number" min="1" placeholder="Custom..." style="margin-bottom:0" oninput="document.querySelectorAll('.regen-chip').forEach(c=>c.classList.remove('active'))">
       <select id="regenUnit" style="border:1.5px solid var(--as);border-radius:10px;padding:8px;font-family:'DM Sans',sans-serif;font-size:12px;background:var(--card);color:var(--text);outline:none;cursor:pointer;min-width:70px">
@@ -1173,6 +1203,7 @@ let lastDoneAtkCat=''; // individual attacker category that stays blurred after 
 let regenDefaults={}; // categoryName → days (default regen for all tasks in category)
 let regenTasks={}; // taskId → {days, done_at} (per-task override + last done timestamp)
 let pendingDoneId=null; // task awaiting regen popup confirmation
+let regenSelectedDays=[]; // [0=Sun,1=Mon,...6=Sat] for day-of-week scheduling
 let timeSlotRules={}; // categoryName → {weekday_from:20, weekday_to:24, weekend:true, holiday:true}
 
 // ===== OFFICE STATE =====
@@ -2274,18 +2305,43 @@ function canPitch(t){if(isInCooldown(t))return false;const cat=tCategory(t);if(!
 // Regen helpers
 function getRegenHours(t){const r=regenTasks[t.id];if(r&&r.hours!=null)return r.hours;if(r&&r.days!=null)return r.days*24;const cat=tCategory(t);const cd=regenDefaults[cat];if(cd!=null)return cd>=1&&cd<=60?cd*24:cd;return null}
 function isInCooldown(t){if(t.status!=='done')return false;const r=regenTasks[t.id];if(!r||!r.done_at)return false;const hrs=getRegenHours(t);if(hrs==null)return false;const doneDate=new Date(r.done_at);const now=new Date();const diffH=(now-doneDate)/(1000*60*60);return diffH<hrs}
-function cooldownLeft(t){const r=regenTasks[t.id];if(!r||!r.done_at)return{v:0,u:'h'};const hrs=getRegenHours(t);if(hrs==null)return{v:0,u:'h'};const doneDate=new Date(r.done_at);const now=new Date();const diffH=(now-doneDate)/(1000*60*60);const left=Math.max(0,hrs-diffH);if(left>=24)return{v:Math.ceil(left/24),u:'d'};return{v:Math.ceil(left),u:'h'}}
+function cooldownLeft(t){const r=regenTasks[t.id];if(!r||!r.done_at)return{v:0,u:'h'};
+  // Day-of-week schedule: show next scheduled day
+  if(r.scheduleDays&&r.scheduleDays.length){
+    var today=new Date().getDay();var days=r.scheduleDays.slice().sort();
+    var next=days.find(function(d){return d>today});if(next==null)next=days[0];
+    var diff=next>today?next-today:7-today+next;
+    var names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return{v:diff===0?'today':names[next],u:diff===0?'':'('+diff+'d)'}
+  }
+  const hrs=getRegenHours(t);if(hrs==null)return{v:0,u:'h'};const doneDate=new Date(r.done_at);const now=new Date();const diffH=(now-doneDate)/(1000*60*60);const left=Math.max(0,hrs-diffH);if(left>=24)return{v:Math.ceil(left/24),u:'d'};return{v:Math.ceil(left),u:'h'}}
 function fmtRegen(hrs){if(hrs==null)return'not set';if(hrs<24)return hrs+'h';if(hrs===24)return'Daily';if(hrs%24===0){const d=hrs/24;if(d===7)return'Weekly';if(d===14)return'2 weeks';if(d===30)return'Monthly';return d+'d'}return hrs+'h'}
 function isActive(t){return t.status!=='done'||(t.status==='done'&&isInCooldown(t))}
 async function checkAndReactivate(){
   let changed=false;
+  const todayDay=new Date().getDay(); // 0=Sun...6=Sat
+  const todayDate=todayK();
   for(const t of allTasks){
     if(t.status!=='done')continue;const r=regenTasks[t.id];if(!r||!r.done_at)continue;
+
+    // Day-of-week schedule: reactivate if today matches a scheduled day
+    if(r.scheduleDays&&r.scheduleDays.length){
+      if(r.scheduleDays.includes(todayDay)){
+        // Don't re-activate if already reactivated today
+        if(r._lastScheduleActivation===todayDate)continue;
+        await markActive(t.id);await changePriority(t.id,'medium');
+        regenTasks[t.id]._lastScheduleActivation=todayDate;
+        changed=true;console.log('📆 Schedule reactivated:',t.name,'('+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][todayDay]+')');
+      }
+      continue; // skip hour-based check for scheduled tasks
+    }
+
+    // Hour-based regen (existing logic)
     const hrs=getRegenHours(t);if(hrs==null)continue;
     const doneDate=new Date(r.done_at);const now=new Date();const diffH=(now-doneDate)/(1000*60*60);
     if(diffH>=hrs){await markActive(t.id);await changePriority(t.id,'critical');changed=true;console.log('♻️ Reactivated:',t.name)}
   }
-  if(changed)renderAll();
+  if(changed){await saveRegenTasks();renderAll()}
 }
 // Time slot check — only applies to attackers
 function isCatAllowedNow(cat){
@@ -3515,7 +3571,13 @@ function showRegenPopup(t){
   else if(currentH!=null){document.getElementById('regenCustom').value=currentH;document.getElementById('regenUnit').value='h'}
   else{document.getElementById('regenCustom').value='';document.getElementById('regenUnit').value='d'}
   // Highlight active preset
-  document.querySelectorAll('.regen-chip').forEach(c=>c.classList.toggle('active',currentH!=null&&parseInt(c.dataset.h)===currentH));
+  document.querySelectorAll('.regen-chip:not(.regen-day)').forEach(c=>c.classList.toggle('active',currentH!=null&&parseInt(c.dataset.h)===currentH));
+  // Restore day-of-week selections
+  regenSelectedDays=r?.scheduleDays||[];
+  document.querySelectorAll('.regen-day').forEach(c=>c.classList.toggle('active',regenSelectedDays.includes(parseInt(c.dataset.day))));
+  var info=document.getElementById('regenDayInfo');
+  if(regenSelectedDays.length){info.style.display='';info.textContent='Every '+regenSelectedDays.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')+' — task regenerates to appear on those days'}
+  else{info.style.display='none'}
   el.classList.add('show');
 }
 async function confirmRegen(){
@@ -3524,8 +3586,9 @@ async function confirmRegen(){
   const unit=document.getElementById('regenUnit').value;
   let hours=null;
   if(customVal){const n=parseInt(customVal);hours=unit==='d'?n*24:n}
-  // Save regen info in hours
+  // Save regen info — hours + optional scheduleDays
   regenTasks[id]={hours,done_at:new Date().toISOString()};
+  if(regenSelectedDays.length)regenTasks[id].scheduleDays=regenSelectedDays.slice().sort();
   await saveRegenTasks();
   // Mark done + rotation
   const pl=taskPlayer(t);const cat=tCategory(t);await markDone(id);
@@ -3540,14 +3603,31 @@ async function confirmRegen(){
   } else if(pitchRotation==='cooldown_atk'&&(pl==='midfielder'||pl==='defender')){
     pitchRotation='free';
   }
-  pendingDoneId=null;closeRegenPopup();
+  pendingDoneId=null;regenSelectedDays=[];closeRegenPopup();
   const next=pitched().filter(isStudy);
   if(isStudy(t)&&next.length){startStudy(next[0].id)}else{renderAll()}
 }
 function selectRegenHours(h){
   if(h>=24&&h%24===0){document.getElementById('regenCustom').value=h/24;document.getElementById('regenUnit').value='d'}
   else{document.getElementById('regenCustom').value=h;document.getElementById('regenUnit').value='h'}
-  document.querySelectorAll('.regen-chip').forEach(c=>c.classList.toggle('active',parseInt(c.dataset.h)===h));
+  document.querySelectorAll('.regen-chip:not(.regen-day)').forEach(c=>c.classList.toggle('active',parseInt(c.dataset.h)===h));
+  // Clear day selections when picking hour/day preset
+  regenSelectedDays=[];
+  document.querySelectorAll('.regen-day').forEach(c=>c.classList.remove('active'));
+  document.getElementById('regenDayInfo').style.display='none';
+}
+function toggleRegenDay(d){
+  var i=regenSelectedDays.indexOf(d);
+  if(i>=0)regenSelectedDays.splice(i,1);else regenSelectedDays.push(d);
+  document.querySelectorAll('.regen-day').forEach(c=>c.classList.toggle('active',regenSelectedDays.includes(parseInt(c.dataset.day))));
+  var info=document.getElementById('regenDayInfo');
+  if(regenSelectedDays.length){
+    // Clear hour/day presets — day-of-week takes priority
+    document.querySelectorAll('.regen-chip:not(.regen-day)').forEach(c=>c.classList.remove('active'));
+    document.getElementById('regenCustom').value='';
+    var names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    info.style.display='';info.textContent='Every '+regenSelectedDays.sort().map(function(x){return names[x]}).join(', ')+' — task reappears on those days';
+  }else{info.style.display='none'}
 }
 function closeRegenPopup(){document.getElementById('regenPopup').classList.remove('show');pendingDoneId=null}
 
@@ -4919,8 +4999,9 @@ function bgTimerStart(taskId,taskName,totalSec,label,ico){
     if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
     try{
       var ac=new(window.AudioContext||window.webkitAudioContext)();
-      var osc=ac.createOscillator();osc.type='sine';osc.frequency.value=880;
-      osc.connect(ac.destination);osc.start();osc.stop(ac.currentTime+0.3);
+      var g=ac.createGain();g.gain.value=0.15;g.connect(ac.destination);
+      var osc=ac.createOscillator();osc.type='triangle';osc.frequency.value=523;
+      osc.connect(g);osc.start();osc.stop(ac.currentTime+0.2);
     }catch(e){}
     bgTimerRenderStrip();bgTimerSave();
   },totalSec*1000);
@@ -4945,9 +5026,10 @@ function bgTimerTick(){
       if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
       try{
         var ac=new(window.AudioContext||window.webkitAudioContext)();
-        var osc=ac.createOscillator();osc.type='sine';osc.frequency.value=880;
-        osc.connect(ac.destination);osc.start();osc.stop(ac.currentTime+0.3);
-        setTimeout(function(){var o2=ac.createOscillator();o2.type='sine';o2.frequency.value=1100;o2.connect(ac.destination);o2.start();o2.stop(ac.currentTime+0.5)},400);
+        var g=ac.createGain();g.gain.value=0.15;g.connect(ac.destination);
+        var osc=ac.createOscillator();osc.type='triangle';osc.frequency.value=523;
+        osc.connect(g);osc.start();osc.stop(ac.currentTime+0.2);
+        setTimeout(function(){var g2=ac.createGain();g2.gain.value=0.12;g2.connect(ac.destination);var o2=ac.createOscillator();o2.type='triangle';o2.frequency.value=659;o2.connect(g2);o2.start();o2.stop(ac.currentTime+0.3)},300);
       }catch(e){}
       bgTimerRenderStrip();bgTimerSave(); // full rebuild only when a timer completes
     }
@@ -5057,7 +5139,52 @@ function bgTimerCloseSet(){
   document.getElementById('bgTimerSetPop').innerHTML='';
 }
 
-async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(updateClock,60000);await loadAll();await checkAndReactivate();
+// ===== SLEEP GATE =====
+// Blocks entire app between 22:00 and 04:00
+const SLEEP_FROM=22; // 10 PM
+const SLEEP_TO=4;    // 4 AM
+
+function isSleepTime(){
+  var h=new Date().getHours();
+  return h>=SLEEP_FROM||h<SLEEP_TO;
+}
+
+function sleepGateCheck(){
+  var gate=document.getElementById('sleepGate');
+  if(isSleepTime()){
+    gate.classList.add('show');
+    // Update clock on the gate
+    var now=new Date();
+    document.getElementById('sleepGateTime').textContent=
+      String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    // Calculate unlock time
+    var unlockH=SLEEP_TO;
+    if(now.getHours()>=SLEEP_FROM){
+      // After 10 PM — unlock is tomorrow at 4 AM
+      var tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);tomorrow.setHours(SLEEP_TO,0,0,0);
+      var diff=tomorrow-now;
+      var hLeft=Math.floor(diff/3600000);var mLeft=Math.floor((diff%3600000)/60000);
+      document.getElementById('sleepGateUnlock').textContent='Unlocks in '+hLeft+'h '+mLeft+'m (04:00 AM)';
+    }else{
+      // Before 4 AM
+      var unlock=new Date(now);unlock.setHours(SLEEP_TO,0,0,0);
+      var diff=unlock-now;
+      var hLeft=Math.floor(diff/3600000);var mLeft=Math.floor((diff%3600000)/60000);
+      document.getElementById('sleepGateUnlock').textContent='Unlocks in '+hLeft+'h '+mLeft+'m (04:00 AM)';
+    }
+  }else{
+    gate.classList.remove('show');
+  }
+}
+
+// Check every 30 seconds
+setInterval(sleepGateCheck,30000);
+
+async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(updateClock,60000);
+  // Sleep gate — check before anything else
+  sleepGateCheck();
+  if(isSleepTime())return; // don't load data, don't render — just show gate
+  await loadAll();await checkAndReactivate();
   // Load brain configs (non-blocking)
   loadClashConfig();loadPersonalityConfig();
   // Load calendar integrations (non-blocking — app renders while these fetch)
