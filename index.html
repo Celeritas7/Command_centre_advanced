@@ -943,6 +943,7 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
   </div>
 </div>
 <button class="corner-btn" id="cornerBtn" onclick="openOv()" style="display:none">☰</button>
+<a href="manager.html" class="corner-btn" style="display:none;bottom:20px;right:76px;background:var(--text2);font-size:14px;text-decoration:none;width:40px;height:40px" id="mgrBtn">⚙️</a>
 <button class="emg-btn" id="emgBtn" onclick="toggleEmergency()" style="display:none" title="Emergency Mode">🚨</button>
 
 <!-- TRAIN OVERLAY -->
@@ -4815,7 +4816,7 @@ async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(up
   loadHolidays().then(()=>{updateBadge();renderPitch()});
   loadPersonalDaysOff();
   loadWeatherData();
-  document.getElementById('loadingView').style.display='none';document.getElementById('pitch').style.display='';document.getElementById('cornerBtn').style.display='';document.getElementById('appLaunchBtn').style.display='';document.getElementById('emgBtn').style.display='';checkPoss();ofcUpdateBlockers();ssInitListeners();gpsCheck();renderPitch();setTimeout(tkvCheck,3000);
+  document.getElementById('loadingView').style.display='none';document.getElementById('pitch').style.display='';document.getElementById('cornerBtn').style.display='';document.getElementById('mgrBtn').style.display='';document.getElementById('appLaunchBtn').style.display='';document.getElementById('emgBtn').style.display='';checkPoss();ofcUpdateBlockers();ssInitListeners();gpsCheck();renderPitch();setTimeout(tkvCheck,3000);
   // CC Brain — nervous system init
   if(typeof CC_BRAIN!=='undefined') CC_BRAIN.init({mode:'native',sb});
 }

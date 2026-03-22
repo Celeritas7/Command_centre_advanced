@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CC Manager</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>⚡</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d0d;--card:#161616;--card2:#1c1c1c;--amber:#d48900;--amber2:#b37300;--amberBg:rgba(212,137,0,.08);--amberBd:rgba(212,137,0,.15);--text:#e8e0d4;--text2:#888;--text3:#555;--red:#e24b4a;--green:#38a169;--blue:#4a9eff;--purple:#7f77dd;--teal:#1d9e75;--atkC:#e2722a;--midC:#3b82f6;--defC:#a855f7}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* Sidebar */
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--amberBd);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10}
+.sb-hdr{padding:16px;border-bottom:1px solid var(--amberBd)}
+.sb-title{font-family:'Fraunces',serif;font-size:16px;font-weight:700;color:var(--amber)}
+.sb-sub{font-size:9px;color:var(--text2);margin-top:2px}
+.sb-nav{flex:1;padding:8px;overflow-y:auto}
+.sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.sb-item:hover{background:var(--amberBg);color:var(--text)}
+.sb-item.active{background:var(--amber);color:var(--bg);font-weight:700}
+.sb-item .ico{font-size:16px;min-width:20px;text-align:center}
+.sb-item .badge{margin-left:auto;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:700}
+.sb-foot{padding:12px;border-top:1px solid var(--amberBd)}
+.sb-foot a{color:var(--amber);font-size:10px;text-decoration:none;display:flex;align-items:center;gap:6px}
+
+/* Main */
+.main{margin-left:220px;flex:1;min-height:100vh;padding:24px 28px}
+.page-hdr{margin-bottom:20px}
+.page-title{font-family:'Fraunces',serif;font-size:22px;font-weight:700}
+.page-sub{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* Cards */
+.mgr-card{background:var(--card);border:1px solid var(--amberBd);border-radius:12px;padding:16px;margin-bottom:12px}
+.mgr-card-hd{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.mgr-card-sub{font-size:10px;color:var(--text2);margin-bottom:10px;line-height:1.5}
+.mgr-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mgr-label{font-size:10px;color:var(--text2);min-width:80px}
+.mgr-sel{background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);font-family:inherit;outline:none;cursor:pointer}
+.mgr-inp{background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);font-family:inherit;outline:none}
+.mgr-toggle{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--amberBd);background:var(--card2);color:var(--text2);font-family:inherit;transition:all .15s}
+.mgr-toggle.on{background:var(--amber);color:var(--bg);border-color:var(--amber)}
+.mgr-btn{border:none;padding:6px 14px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.mgr-btn-primary{background:var(--amber);color:var(--bg)}
+.mgr-btn-danger{background:rgba(226,75,74,.12);color:var(--red)}
+.mgr-btn-ghost{background:none;color:var(--amber);border:1px dashed var(--amberBd)}
+.mgr-btn-teal{background:var(--teal);color:var(--bg)}
+
+/* Grid */
+.mgr-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:800px){.mgr-grid{grid-template-columns:1fr}}
+
+/* Status dots */
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dot-g{background:var(--green)}.dot-r{background:var(--red)}.dot-y{background:var(--amber)}
+
+/* Timeline */
+.tl-wrap{position:relative;overflow-x:auto;border:1px solid var(--amberBd);border-radius:10px;background:var(--card);margin-bottom:16px}
+.tl-header{display:flex;position:sticky;top:0;background:var(--card);z-index:2;border-bottom:1px solid var(--amberBd)}
+.tl-label-col{min-width:130px;padding:8px 10px;font-size:10px;font-weight:700;color:var(--text2)}
+.tl-hours{display:flex;flex:1}
+.tl-hour{min-width:46px;flex:1;text-align:center;font-size:8px;color:var(--text3);padding:6px 0;font-family:'JetBrains Mono',monospace;border-left:1px solid rgba(255,255,255,.03)}
+.tl-hour.now{color:var(--amber);font-weight:700}
+.tl-row{display:flex;min-height:36px;border-bottom:1px solid rgba(255,255,255,.03)}
+.tl-row:last-child{border-bottom:none}
+.tl-row-label{min-width:130px;display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:10px;font-weight:600;border-right:1px solid rgba(255,255,255,.05)}
+.tl-row-label .type{font-size:7px;padding:1px 4px;border-radius:3px;font-weight:700}
+.tl-row-label .type.atk{background:#e2722a22;color:var(--atkC)}
+.tl-row-label .type.mid{background:#3b82f622;color:var(--midC)}
+.tl-row-label .type.def{background:#a855f722;color:var(--defC)}
+.tl-track{flex:1;position:relative;min-height:36px}
+.tl-bar{position:absolute;top:4px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;min-width:20px;cursor:pointer}
+.tl-bar:hover{opacity:.85}
+.tl-bar.atk{background:rgba(226,114,42,.35);border:1px solid rgba(226,114,42,.5);color:#e8a060}
+.tl-bar.mid{background:rgba(59,130,246,.25);border:1px solid rgba(59,130,246,.4);color:#7ab0f5}
+.tl-bar.def{background:rgba(168,85,247,.25);border:1px solid rgba(168,85,247,.4);color:#b890f0}
+.tl-now{position:absolute;top:0;bottom:0;width:2px;background:var(--amber);z-index:1;pointer-events:none}
+
+/* Tier chips */
+.tier-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.tier-chip{display:flex;align-items:center;gap:4px;background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:4px 8px;font-size:10px}
+.tier-chip button{border:none;background:none;color:var(--text3);cursor:pointer;font-size:9px;padding:0 2px;font-family:inherit}
+.tier-chip button:hover{color:var(--amber)}
+
+/* Clash */
+.clash-item{background:var(--card);border:1px solid var(--red);border-radius:10px;padding:12px;margin-bottom:8px}
+.clash-badge{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700}
+.clash-badge.w{background:rgba(56,161,105,.15);color:var(--green)}
+.clash-badge.l{background:rgba(226,75,74,.1);color:var(--red)}
+
+/* Bench */
+.bench-cat{background:var(--card);border:1px solid var(--amberBd);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:border-color .15s}
+.bench-cat:hover{border-color:var(--amber)}
+.bench-count{font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700;background:var(--amberBg);color:var(--amber)}
+
+/* Task items */
+.task-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px}
+.task-item:last-child{border-bottom:none}
+.task-pri{width:3px;height:18px;border-radius:2px;flex-shrink:0}
+
+/* Mobile */
+.sb-toggle{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--amber);color:var(--bg);border:none;width:36px;height:36px;border-radius:8px;font-size:16px;cursor:pointer;font-family:inherit}
+@media(max-width:700px){
+  .sidebar{transform:translateX(-100%);transition:transform .25s;z-index:15}
+  .sidebar.open{transform:translateX(0)}
+  .sb-toggle{display:block}
+  .main{margin-left:0;padding:16px;padding-top:56px}
+}
+</style>
+</head>
+<body>
+
+<button class="sb-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+
+<nav class="sidebar">
+  <div class="sb-hdr">
+    <div class="sb-title">⚡ CC Manager</div>
+    <div class="sb-sub">Command Centre Control Room</div>
+  </div>
+  <div class="sb-nav" id="sbnav"></div>
+  <div class="sb-foot"><a href="index.html">← Back to pitch</a></div>
+</nav>
+
+<div class="main" id="content">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--text3)">Loading...</div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const SB_URL='https://wylxvmkcrexwfpjpbhyy.supabase.co';
+const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
+const sb=window.supabase.createClient(SB_URL,SB_ANON);
+
+// ===== SQUADS =====
+const SQUADS=[
+  {name:'App Gen',type:'attacker',ico:'💻',locs:['home']},
+  {name:'Quick Study',type:'attacker',ico:'📖',locs:['home','outside']},
+  {name:'AI Study',type:'attacker',ico:'🤖',locs:['home']},
+  {name:'Executive',type:'attacker',ico:'🎯',locs:['outside']},
+  {name:'Manager Tasks',type:'attacker',ico:'📨',locs:['office']},
+  {name:'Reminders',type:'attacker',ico:'⏰',locs:['office']},
+  {name:'People Tasks',type:'attacker',ico:'👥',locs:['office']},
+  {name:'Food',type:'midfielder',ico:'🍳',locs:['home','outside']},
+  {name:'Cost',type:'midfielder',ico:'💰',locs:['home','outside']},
+  {name:'Weather',type:'midfielder',ico:'⛅',locs:['outside']},
+  {name:'Health',type:'midfielder',ico:'💊',locs:['home','outside']},
+  {name:'Exercise',type:'midfielder',ico:'💪',locs:['home']},
+  {name:'Eagle Eye',type:'midfielder',ico:'🦅',locs:['office']},
+  {name:'Ghost Tracker',type:'midfielder',ico:'👻',locs:['office']},
+  {name:'Part Inventory',type:'midfielder',ico:'🔩',locs:['office']},
+  {name:'Sleep',type:'defender',ico:'😴',locs:['home']},
+  {name:'Psychology',type:'defender',ico:'🧠',locs:['office','outside']},
+  {name:'Fashion',type:'defender',ico:'👔',locs:['home','outside']},
+  {name:'Cleaning',type:'defender',ico:'🧹',locs:['home']},
+];
+function findSq(n){return SQUADS.find(function(s){return s.name===n})}
+
+// ===== STATE =====
+var page='takeover';
+var takeoverConfig={},streakData={},clashPriorities={Health:4,Sleep:4,Food:3,Exercise:3,Cleaning:3,'Manager Tasks':2,Reminders:2,'People Tasks':2,Executive:2,'App Gen':2,'Quick Study':2,'AI Study':2,Cost:1,Weather:1,Fashion:1,Psychology:1,'Eagle Eye':1,'Ghost Tracker':1,'Part Inventory':1};
+var clashRules={weekendShieldsUp:{enabled:true,beforeHour:13,description:'Defenders/Mid before Attackers until 1 PM'},creditEmergency:{enabled:true,threshold:10,description:'Force squad if credits below threshold'},streakProtection:{enabled:true,description:'Squad with 3+ day streak gets +1 tier boost'},moodOverride:{enabled:true,description:'Emergency → Health/Psychology become captains'}};
+var allTasks=[],playerMap={},timeSlotRules={},ofcBlLinks=[],ssMessages=[],ssTimeoutMin=15;
+var costTriggerCfg={timeTriggers:[],gpsShops:[],gpsCooldownMin:15,officeDeparture:{enabled:true,delayMin:2}};
+var gpsLat=0,gpsLng=0,gpsAccuracy=0,gpsAutoLoc=true;
+var ccApiKey='',brainSettings={},customSquads={};
+var personalities={};
+
+// ===== NAV =====
+var NAV=[
+  {id:'takeover',ico:'⚡',name:'Takeover',desc:'Timeline + squad configs'},
+  {id:'brain',ico:'🧠',name:'Brain',desc:'Personalities, clash, tiers'},
+  {id:'bench',ico:'📋',name:'Bench',desc:'Tasks + categories'},
+  {id:'rules',ico:'📏',name:'Rules',desc:'Attacker time slots'},
+  {id:'settings',ico:'⚙️',name:'Settings',desc:'Links, screensaver, triggers'},
+  {id:'commute',ico:'🚃',name:'Commute',desc:'GPS + train card'},
+];
+
+function renderNav(){
+  var h='';
+  NAV.forEach(function(n){
+    h+='<button class="sb-item '+(page===n.id?'active':'')+'" onclick="page=\''+n.id+'\';renderNav();renderPage()"><span class="ico">'+n.ico+'</span><span>'+n.name+'</span></button>';
+  });
+  document.getElementById('sbnav').innerHTML=h;
+}
+
+// ===== INIT =====
+async function init(){
+  renderNav();
+  try{
+    var keys=['cf_takeover_cfg','cf_streaks','cf_timeslots','cf_ofc_bl_links','cf_screensaver','cf_cost_triggers','cf_api_key','cf_custom_squads'];
+    var{data:mem}=await sb.from('mind_map_app_chat_memory').select('key,value').in('key',keys);
+    (mem||[]).forEach(function(m){
+      try{
+        if(m.key==='cf_takeover_cfg')takeoverConfig=JSON.parse(m.value);
+        if(m.key==='cf_streaks')streakData=JSON.parse(m.value);
+        if(m.key==='cf_timeslots')timeSlotRules=JSON.parse(m.value);
+        if(m.key==='cf_ofc_bl_links')ofcBlLinks=JSON.parse(m.value);
+        if(m.key==='cf_screensaver'){var d=JSON.parse(m.value);ssMessages=d.messages||[];ssTimeoutMin=d.timeout||15}
+        if(m.key==='cf_cost_triggers')costTriggerCfg=JSON.parse(m.value);
+        if(m.key==='cf_api_key')ccApiKey=m.value;
+        if(m.key==='cf_custom_squads')customSquads=JSON.parse(m.value);
+      }catch(e){}
+    });
+    // Load tasks + assemblies for bench
+    var{data:tasks}=await sb.from('mind_map_app_tasks').select('id,name,status,assembly_id,parent_id,is_recurring,links,notes').eq('status','active');
+    allTasks=tasks||[];
+    var{data:asm}=await sb.from('mind_map_app_assemblies').select('id,name');
+    (asm||[]).forEach(function(a){playerMap[a.name]=playerMap[a.name]||'attacker'});
+    // Load brain settings
+    var{data:bs}=await sb.from('command_centre_brain_settings').select('key,value');
+    (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{}});
+    // GPS
+    if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy)},function(){},{timeout:8000});
+  }catch(e){console.error('Init error:',e)}
+  renderPage();
+}
+
+// ===== SAVE HELPERS =====
+async function saveMem(k,v){await sb.from('mind_map_app_chat_memory').upsert({key:k,value:typeof v==='string'?v:JSON.stringify(v)},{onConflict:'key'})}
+async function saveTakeover(){await saveMem('cf_takeover_cfg',takeoverConfig)}
+async function saveClash(){await sb.from('command_centre_brain_settings').upsert({key:'clash_config',value:{priorities:clashPriorities,rules:clashRules}},{onConflict:'key'})}
+async function savePersonalities(){await sb.from('command_centre_brain_settings').upsert({key:'personalities',value:personalities},{onConflict:'key'})}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function sSn(s){return s.replace(/'/g,"\\'")}
+function isWeekend(){var d=new Date().getDay();return d===0||d===6}
+
+// ===== RENDER PAGE =====
+function renderPage(){
+  var c=document.getElementById('content');
+  var r={takeover:pgTakeover,brain:pgBrain,bench:pgBench,rules:pgRules,settings:pgSettings,commute:pgCommute};
+  c.innerHTML=(r[page]||pgTakeover)();
+  document.querySelector('.sidebar').classList.remove('open');
+}
+
+// ===== PAGE: TAKEOVER =====
+function pgTakeover(){
+  var h='<div class="page-hdr"><div class="page-title">⚡ Takeover Planner</div><div class="page-sub">Visual timeline and squad configurations</div></div>';
+  h+=renderTimeline();
+  // Squad cards
+  var types=[{key:'attacker',name:'⚔️ Attackers'},{key:'midfielder',name:'🏃 Midfielders'},{key:'defender',name:'🪞 Defenders'}];
+  types.forEach(function(grp){
+    h+='<div style="font-size:12px;font-weight:700;color:var(--text2);margin:16px 0 8px">'+grp.name+'</div>';
+    h+='<div class="mgr-grid">';
+    SQUADS.filter(function(s){return s.type===grp.key}).forEach(function(sq){h+=renderSquadCard(sq)});
+    h+='</div>';
+  });
+  return h;
+}
+
+function renderTimeline(){
+  var nowH=new Date().getHours(),nowM=new Date().getMinutes();
+  var h='<div class="tl-wrap"><div class="tl-header"><div class="tl-label-col">SQUAD</div><div class="tl-hours">';
+  for(var i=5;i<=23;i++)h+='<div class="tl-hour'+(i===nowH?' now':'')+'">'+String(i).padStart(2,'0')+'</div>';
+  h+='</div></div>';
+  SQUADS.forEach(function(sq){
+    var cfg=takeoverConfig[sq.name],cls=sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def';
+    h+='<div class="tl-row"><div class="tl-row-label"><span style="font-size:13px">'+sq.ico+'</span><span style="flex:1;font-size:9px">'+sq.name+'</span><span class="type '+cls+'">'+cls.toUpperCase()+'</span></div><div class="tl-track">';
+    if(cfg&&cfg.enabled){
+      var hasSplit=cfg.weekdayOverride||cfg.weekendOverride;
+      if(hasSplit){
+        var wdOv=cfg.weekdayOverride||{},weOv=cfg.weekendOverride||{};
+        var wdT=wdOv.timeFrom!=null?wdOv.timeFrom:cfg.timeFrom,wdD=(wdOv.timerMin!=null?wdOv.timerMin:cfg.timerMin)/60;
+        var weT=weOv.timeFrom!=null?weOv.timeFrom:cfg.timeFrom,weD=(weOv.timerMin!=null?weOv.timerMin:cfg.timerMin)/60;
+        h+='<div class="tl-bar '+cls+'" style="left:'+((wdT-5)/18*100)+'%;width:'+Math.max(wdD/18*100,2.5)+'%;top:2px;height:14px;font-size:7px" title="Weekday">WD '+String(wdT).padStart(2,'0')+'</div>';
+        h+='<div class="tl-bar '+cls+'" style="left:'+((weT-5)/18*100)+'%;width:'+Math.max(weD/18*100,2.5)+'%;top:18px;height:14px;font-size:7px;opacity:.65" title="Weekend">WE '+String(weT).padStart(2,'0')+'</div>';
+      }else{
+        var st=cfg.timeFrom||9,dur=(cfg.timerMin||15)/60;
+        h+='<div class="tl-bar '+cls+'" style="left:'+((st-5)/18*100)+'%;width:'+Math.max(dur/18*100,2.5)+'%">'+String(st).padStart(2,'0')+':00</div>';
+      }
+    }
+    if(nowH>=5&&nowH<=23)h+='<div class="tl-now" style="left:'+((nowH-5+nowM/60)/18*100)+'%"></div>';
+    h+='</div></div>';
+  });
+  h+='</div>';
+  // Stats
+  var conf=Object.keys(takeoverConfig).filter(function(k){return takeoverConfig[k].enabled}).length;
+  var clashes=findClashes();
+  h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">';
+  h+='<div class="mgr-card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700;color:var(--amber)">'+conf+'</div><div style="font-size:10px;color:var(--text2)">Active</div></div>';
+  h+='<div class="mgr-card" style="flex:1;min-width:120px;text-align:center;border-color:'+(clashes.length?'var(--red)':'var(--amberBd)')+'"><div style="font-size:24px;font-weight:700;color:'+(clashes.length?'var(--red)':'var(--green)')+'">'+clashes.length+'</div><div style="font-size:10px;color:var(--text2)">Clashes</div></div>';
+  h+='<div class="mgr-card" style="flex:1;min-width:120px;text-align:center"><div style="font-size:24px;font-weight:700">'+SQUADS.length+'</div><div style="font-size:10px;color:var(--text2)">Total squads</div></div>';
+  h+='</div>';
+  return h;
+}
+
+function renderSquadCard(sq){
+  var cfg=takeoverConfig[sq.name],sn=sq.name,s=sSn(sn);
+  var streak=(streakData[sn]||{}).streak||0;
+  var hasSplit=cfg&&(cfg.weekdayOverride||cfg.weekendOverride);
+  var h='<div class="mgr-card">';
+  h+='<div class="mgr-card-hd"><span style="font-size:18px">'+sq.ico+'</span><span style="flex:1">'+sn+'</span>';
+  if(streak)h+='<span style="font-size:9px;color:var(--amber);font-weight:600">🔥 '+streak+'d</span>';
+  h+='</div>';
+  if(!cfg){
+    h+='<div style="text-align:center;padding:8px"><button class="mgr-btn mgr-btn-primary" onclick="takeoverConfig[\''+s+'\']={enabled:true,hardLock:false,timeFrom:9,timeTo:9,days:[\'weekday\',\'weekend\'],loc:'+JSON.stringify(sq.locs)+',tasks:[{id:\'tx1\',text:\'One task\',ico:\'📋\',done:false}],timerMin:15};saveTakeover();renderPage()">+ Enable</button></div></div>';
+    return h;
+  }
+  h+='<div class="mgr-row"><span class="mgr-label">Enabled</span><button class="mgr-toggle '+(cfg.enabled?'on':'')+'" onclick="takeoverConfig[\''+s+'\'].enabled=!takeoverConfig[\''+s+'\'].enabled;saveTakeover();renderPage()">'+(cfg.enabled?'● ON':'○ OFF')+'</button></div>';
+  if(hasSplit){
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span class="dot dot-g"></span><span style="font-size:9px;color:var(--green);font-weight:600">Weekday/Weekend split active</span><button class="mgr-btn mgr-btn-danger" style="margin-left:auto;font-size:8px;padding:2px 8px" onclick="delete takeoverConfig[\''+s+'\'].weekdayOverride;delete takeoverConfig[\''+s+'\'].weekendOverride;saveTakeover();renderPage()">Merge</button></div>';
+    h+=renderCfgBlock(sn,cfg.weekdayOverride||{},cfg,'📅 WEEKDAY','weekdayOverride');
+    h+=renderCfgBlock(sn,cfg.weekendOverride||{},cfg,'🌴 WEEKEND','weekendOverride');
+  }else{
+    h+=renderCfgBlockUnified(sn,cfg);
+    h+='<button class="mgr-btn mgr-btn-teal" style="width:100%;margin-top:6px" onclick="splitCfg(\''+s+'\')">✂ Split weekday / weekend</button>';
+  }
+  h+='<button class="mgr-btn mgr-btn-danger" style="width:100%;margin-top:6px" onclick="delete takeoverConfig[\''+s+'\'];saveTakeover();renderPage()">Remove</button>';
+  h+='</div>';
+  return h;
+}
+
+function renderCfgBlock(sn,ov,base,label,key){
+  var s=sSn(sn),path="takeoverConfig['"+s+"']."+key;
+  var tf=ov.timeFrom!=null?ov.timeFrom:base.timeFrom;
+  var tm=ov.timerMin!=null?ov.timerMin:base.timerMin;
+  var hl=ov.hardLock!=null?ov.hardLock:base.hardLock;
+  var h='<div style="background:var(--bg);border:1px solid var(--amberBd);border-radius:8px;padding:8px;margin-bottom:6px">';
+  h+='<div style="font-size:9px;font-weight:700;color:var(--amber);margin-bottom:6px">'+label+'</div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Time</span><select class="mgr-sel" onchange="'+path+'.timeFrom=parseInt(this.value);saveTakeover();renderPage()">';
+  for(var i=5;i<=23;i++)h+='<option value="'+i+'" '+(tf===i?'selected':'')+'>'+String(i).padStart(2,'0')+':00</option>';
+  h+='</select></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Duration</span><select class="mgr-sel" onchange="'+path+'.timerMin=parseInt(this.value);saveTakeover();renderPage()">';
+  [5,10,15,20,30,45,60,90,120].forEach(function(m){h+='<option value="'+m+'" '+(tm===m?'selected':'')+'>'+m+' min</option>'});
+  h+='</select></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Lock</span><button class="mgr-toggle '+(hl?'on':'')+'" onclick="'+path+'.hardLock=!'+path+'.hardLock;saveTakeover();renderPage()" style="'+(hl?'background:var(--red);border-color:var(--red)':'')+'">'+(hl?'🔴 Hard':'🟡 Soft')+'</button></div>';
+  h+='</div>';
+  return h;
+}
+
+function renderCfgBlockUnified(sn,cfg){
+  var s=sSn(sn),h='';
+  h+='<div class="mgr-row"><span class="mgr-label">Time</span><select class="mgr-sel" onchange="takeoverConfig[\''+s+'\'].timeFrom=parseInt(this.value);saveTakeover();renderPage()">';
+  for(var i=5;i<=23;i++)h+='<option value="'+i+'" '+(cfg.timeFrom===i?'selected':'')+'>'+String(i).padStart(2,'0')+':00</option>';
+  h+='</select></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Duration</span><select class="mgr-sel" onchange="takeoverConfig[\''+s+'\'].timerMin=parseInt(this.value);saveTakeover();renderPage()">';
+  [5,10,15,20,30,45,60,90,120].forEach(function(m){h+='<option value="'+m+'" '+(cfg.timerMin===m?'selected':'')+'>'+m+' min</option>'});
+  h+='</select></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Lock</span><button class="mgr-toggle '+(cfg.hardLock?'on':'')+'" onclick="takeoverConfig[\''+s+'\'].hardLock=!takeoverConfig[\''+s+'\'].hardLock;saveTakeover();renderPage()" style="'+(cfg.hardLock?'background:var(--red);border-color:var(--red)':'')+'">'+(cfg.hardLock?'🔴 Hard':'🟡 Soft')+'</button></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Days</span><div style="display:flex;gap:4px">';
+  ['weekday','weekend'].forEach(function(d){var on=(cfg.days||[]).includes(d);h+='<button class="mgr-toggle '+(on?'on':'')+'" onclick="var d=takeoverConfig[\''+s+'\'].days||[];var i=d.indexOf(\''+d+'\');if(i>=0)d.splice(i,1);else d.push(\''+d+'\');takeoverConfig[\''+s+'\'].days=d;saveTakeover();renderPage()">'+d+'</button>'});
+  h+='</div></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Location</span><div style="display:flex;gap:4px">';
+  ['home','office','outside'].forEach(function(l){var on=(cfg.loc||[]).includes(l);h+='<button class="mgr-toggle '+(on?'on':'')+'" onclick="var a=takeoverConfig[\''+s+'\'].loc||[];var i=a.indexOf(\''+l+'\');if(i>=0)a.splice(i,1);else a.push(\''+l+'\');takeoverConfig[\''+s+'\'].loc=a;saveTakeover();renderPage()">'+(({home:'🏠',office:'🏢',outside:'🌳'})[l])+'</button>'});
+  h+='</div></div>';
+  h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-top:6px;margin-bottom:4px">Tasks ('+(cfg.tasks||[]).length+')</div>';
+  (cfg.tasks||[]).forEach(function(t,i){
+    h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input class="mgr-inp" style="width:24px;text-align:center;font-size:12px" value="'+esc(t.ico)+'" onchange="takeoverConfig[\''+s+'\'].tasks['+i+'].ico=this.value;saveTakeover()"><input class="mgr-inp" style="flex:1" value="'+esc(t.text)+'" onchange="takeoverConfig[\''+s+'\'].tasks['+i+'].text=this.value;saveTakeover()"><button class="mgr-btn mgr-btn-danger" style="padding:2px 6px;font-size:8px" onclick="takeoverConfig[\''+s+'\'].tasks.splice('+i+',1);saveTakeover();renderPage()">✕</button></div>';
+  });
+  h+='<button class="mgr-btn mgr-btn-ghost" style="width:100%;margin-top:4px" onclick="takeoverConfig[\''+s+'\'].tasks.push({id:\'tx\'+Date.now(),text:\'New task\',ico:\'📋\',done:false});saveTakeover();renderPage()">+ Task</button>';
+  return h;
+}
+
+function splitCfg(sn){
+  var c=takeoverConfig[sn];if(!c)return;
+  c.weekdayOverride={timeFrom:c.timeFrom,timerMin:c.timerMin,hardLock:c.hardLock,loc:(c.loc||[]).slice()};
+  c.weekendOverride={timeFrom:c.timeFrom,timerMin:c.timerMin*2,hardLock:c.hardLock,loc:(c.loc||[]).slice()};
+  c.days=['weekday','weekend'];
+  saveTakeover();renderPage();
+}
+
+// ===== CLASH DETECTION =====
+function findClashes(){
+  var active=Object.entries(takeoverConfig).filter(function(e){return e[1].enabled});
+  var cl=[];
+  for(var i=0;i<active.length;i++)for(var j=i+1;j<active.length;j++){
+    var nA=active[i][0],cA=active[i][1],nB=active[j][0],cB=active[j][1];
+    var sA=cA.timeFrom,eA=sA+(cA.timerMin||15)/60,sB=cB.timeFrom,eB=sB+(cB.timerMin||15)/60;
+    if(sA<eB&&sB<eA){
+      var shD=(cA.days||[]).filter(function(d){return(cB.days||[]).includes(d)});
+      var shL=(cA.loc||[]).filter(function(l){return(cB.loc||[]).includes(l)});
+      if(shD.length&&shL.length)cl.push({a:nA,b:nB,time:Math.max(sA,sB),days:shD,locs:shL});
+    }
+  }
+  return cl;
+}
+function resolveClash(a,b){
+  var pa=clashPriorities[a]||1,pb=clashPriorities[b]||1,reasons=[];
+  if(clashRules.streakProtection&&clashRules.streakProtection.enabled){
+    if(((streakData[a]||{}).streak||0)>=3){pa++;reasons.push(a+' streak +1')}
+    if(((streakData[b]||{}).streak||0)>=3){pb++;reasons.push(b+' streak +1')}
+  }
+  reasons.push('Tier: '+a+'='+pa+', '+b+'='+pb);
+  var w=pa>=pb?a:b;return{winner:w,loser:w===a?b:a,pa:pa,pb:pb,reasons:reasons};
+}
+
+// ===== PAGE: BRAIN =====
+function pgBrain(){
+  var h='<div class="page-hdr"><div class="page-title">🧠 Brain</div><div class="page-sub">Personalities, clash resolution, priority tiers</div></div>';
+  // API key
+  h+='<div class="mgr-card"><div class="mgr-card-hd"><span>🤖</span>AI Briefing Key <span style="font-size:9px;color:'+(ccApiKey?'var(--green)':'var(--text3)')+'">'+(ccApiKey?'● Active':'○ Not set')+'</span></div>';
+  h+='<div class="mgr-row"><input class="mgr-inp" type="password" style="flex:1" value="'+(ccApiKey?'••••••••'+ccApiKey.slice(-4):'')+'" placeholder="sk-ant-..." id="apiK"><button class="mgr-btn mgr-btn-primary" style="margin-left:6px" onclick="var v=document.getElementById(\'apiK\').value.trim();if(v&&!v.startsWith(\'••\')){ccApiKey=v;saveMem(\'cf_api_key\',v);renderPage()}">Save</button></div></div>';
+  // Tiers
+  h+='<div class="mgr-card"><div class="mgr-card-hd">🏆 Priority Tiers</div><div class="mgr-card-sub">Higher tier wins clashes. ▲ ▼ to move squads.</div>';
+  [{n:4,l:'Non-negotiable'},{n:3,l:'Self-care'},{n:2,l:'Work / Growth'},{n:1,l:'Maintenance'}].forEach(function(tm){
+    var inTier=SQUADS.filter(function(s){return(clashPriorities[s.name]||1)===tm.n});
+    h+='<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:var(--text2);margin-bottom:4px">Tier '+tm.n+' — '+tm.l+'</div><div class="tier-chips">';
+    inTier.forEach(function(sq){
+      h+='<div class="tier-chip"><span style="font-size:12px">'+sq.ico+'</span>'+sq.name;
+      if(tm.n<4)h+='<button onclick="clashPriorities[\''+sSn(sq.name)+'\']='+(tm.n+1)+';saveClash();renderPage()">▲</button>';
+      if(tm.n>1)h+='<button onclick="clashPriorities[\''+sSn(sq.name)+'\']='+(tm.n-1)+';saveClash();renderPage()">▼</button>';
+      h+='</div>';
+    });
+    if(!inTier.length)h+='<span style="font-size:9px;color:var(--text3)">Empty</span>';
+    h+='</div></div>';
+  });
+  h+='</div>';
+  // Override rules
+  h+='<div class="mgr-card"><div class="mgr-card-hd">⚙️ Override Rules</div>';
+  Object.entries(clashRules).forEach(function(e){
+    var k=e[0],r=e[1];
+    h+='<div class="mgr-row" style="margin-bottom:8px"><button class="mgr-toggle '+(r.enabled?'on':'')+'" onclick="clashRules.'+k+'.enabled=!clashRules.'+k+'.enabled;saveClash();renderPage()">'+(r.enabled?'ON':'OFF')+'</button><div style="flex:1;margin-left:4px"><div style="font-size:10px;font-weight:600">'+k.replace(/([A-Z])/g,' $1')+'</div><div style="font-size:9px;color:var(--text2)">'+esc(r.description)+'</div></div></div>';
+  });
+  h+='</div>';
+  // Clash simulator
+  h+='<div class="mgr-card"><div class="mgr-card-hd">⚡ Clash Simulator</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select class="mgr-sel" id="simA">';
+  SQUADS.forEach(function(s){h+='<option>'+s.name+'</option>'});
+  h+='</select><span style="color:var(--text3);font-weight:700;font-size:10px">vs</span><select class="mgr-sel" id="simB">';
+  SQUADS.forEach(function(s,i){h+='<option '+(i===7?'selected':'')+'>'+s.name+'</option>'});
+  h+='</select><button class="mgr-btn mgr-btn-primary" onclick="var a=document.getElementById(\'simA\').value,b=document.getElementById(\'simB\').value,r=resolveClash(a,b),sq=findSq(r.winner);document.getElementById(\'simR\').innerHTML=\'<span style=font-size:16px>\'+sq.ico+\'</span> <strong>\'+r.winner+\'</strong> wins — \'+r.reasons.join(\' · \')">Test</button></div>';
+  h+='<div id="simR" style="margin-top:6px;font-size:11px;color:var(--amber)"></div></div>';
+  // Active clashes
+  var cl=findClashes();
+  if(cl.length){
+    h+='<div class="mgr-card" style="border-color:var(--red)"><div class="mgr-card-hd" style="color:var(--red)">⚠️ Active Clashes ('+cl.length+')</div>';
+    cl.forEach(function(c){
+      var r=resolveClash(c.a,c.b);
+      h+='<div class="clash-item"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="font-size:12px">'+(findSq(c.a)||{ico:'?'}).ico+'</span><span style="font-size:11px;font-weight:700">'+c.a+'</span><span class="clash-badge '+(r.winner===c.a?'w':'l')+'">'+(r.winner===c.a?'WIN':'LOSE')+'</span><span style="color:var(--text3);font-size:10px">vs</span><span style="font-size:12px">'+(findSq(c.b)||{ico:'?'}).ico+'</span><span style="font-size:11px;font-weight:700">'+c.b+'</span><span class="clash-badge '+(r.winner===c.b?'w':'l')+'">'+(r.winner===c.b?'WIN':'LOSE')+'</span></div><div style="font-size:9px;color:var(--text2);margin-top:4px">'+String(Math.floor(c.time)).padStart(2,'0')+':00 · '+c.days.join(', ')+'</div></div>';
+    });
+    h+='</div>';
+  }
+  return h;
+}
+
+// ===== PAGE: BENCH =====
+function pgBench(){
+  var h='<div class="page-hdr"><div class="page-title">📋 Bench</div><div class="page-sub">Tasks and categories overview — edit in the main app</div></div>';
+  // Group tasks by assembly/category
+  var cats={};
+  allTasks.forEach(function(t){var c=t.assembly_id||'uncategorized';if(!cats[c])cats[c]=[];cats[c].push(t)});
+  var total=allTasks.length;
+  h+='<div class="mgr-card"><div class="mgr-card-hd">📊 Summary</div><div style="display:flex;gap:16px;font-size:12px"><span>Total active: <strong>'+total+'</strong></span><span>Categories: <strong>'+Object.keys(cats).length+'</strong></span></div></div>';
+  Object.entries(cats).forEach(function(e){
+    var catId=e[0],tasks=e[1];
+    h+='<div class="mgr-card" style="padding:12px"><div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="var el=document.getElementById(\'cat_'+catId+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'"><span style="font-size:12px;font-weight:700;flex:1">'+(catId==='uncategorized'?'📦 Uncategorized':catId)+'</span><span class="bench-count">'+tasks.length+'</span></div>';
+    h+='<div id="cat_'+catId+'" style="display:none;margin-top:8px">';
+    tasks.slice(0,20).forEach(function(t){
+      h+='<div class="task-item"><div class="task-pri" style="background:'+(t.status==='done'?'var(--green)':'var(--amber)')+'"></div><span style="flex:1">'+esc(t.name)+'</span><span style="font-size:9px;color:var(--text3)">'+t.status+'</span></div>';
+    });
+    if(tasks.length>20)h+='<div style="font-size:9px;color:var(--text3);padding:4px 8px">...and '+(tasks.length-20)+' more</div>';
+    h+='</div></div>';
+  });
+  return h;
+}
+
+// ===== PAGE: RULES =====
+function pgRules(){
+  var h='<div class="page-hdr"><div class="page-title">📏 Attacker Time Slots</div><div class="page-sub">Set when each attacker category can appear on the pitch</div></div>';
+  var atkSquads=SQUADS.filter(function(s){return s.type==='attacker'});
+  atkSquads.forEach(function(sq){
+    var rule=timeSlotRules[sq.name]||{};
+    var wdFrom=rule.weekday_from!=null?rule.weekday_from:0;
+    var wdTo=rule.weekday_to!=null?rule.weekday_to:24;
+    var wkend=rule.weekend!==false;
+    h+='<div class="mgr-card"><div class="mgr-card-hd"><span style="font-size:16px">'+sq.ico+'</span>'+sq.name+'</div>';
+    h+='<div class="mgr-row"><span class="mgr-label">Weekday hours</span><select class="mgr-sel" onchange="if(!timeSlotRules[\''+sSn(sq.name)+'\'])timeSlotRules[\''+sSn(sq.name)+'\']={}; timeSlotRules[\''+sSn(sq.name)+'\'].weekday_from=parseInt(this.value);saveMem(\'cf_timeslots\',timeSlotRules);renderPage()">';
+    for(var i=0;i<=23;i++)h+='<option value="'+i+'" '+(i===wdFrom?'selected':'')+'>'+String(i).padStart(2,'0')+':00</option>';
+    h+='</select><span style="font-size:10px;color:var(--text3)">to</span><select class="mgr-sel" onchange="if(!timeSlotRules[\''+sSn(sq.name)+'\'])timeSlotRules[\''+sSn(sq.name)+'\']={}; timeSlotRules[\''+sSn(sq.name)+'\'].weekday_to=parseInt(this.value);saveMem(\'cf_timeslots\',timeSlotRules);renderPage()">';
+    for(var j=1;j<=24;j++)h+='<option value="'+j+'" '+(j===wdTo?'selected':'')+'>'+(j===24?'24:00':String(j).padStart(2,'0')+':00')+'</option>';
+    h+='</select></div>';
+    h+='<div class="mgr-row"><span class="mgr-label">Weekends</span><button class="mgr-toggle '+(wkend?'on':'')+'" onclick="if(!timeSlotRules[\''+sSn(sq.name)+'\'])timeSlotRules[\''+sSn(sq.name)+'\']={}; timeSlotRules[\''+sSn(sq.name)+'\'].weekend='+(!wkend)+';saveMem(\'cf_timeslots\',timeSlotRules);renderPage()">'+(wkend?'✓ Available':'✕ Blocked')+'</button></div>';
+    h+='<div style="display:flex;gap:4px;margin-top:6px">';
+    [{l:'Always',p:{weekday_from:0,weekday_to:24,weekend:true}},{l:'Evening',p:{weekday_from:18,weekday_to:24,weekend:true}},{l:'Morning',p:{weekday_from:6,weekday_to:12,weekend:true}},{l:'Off-hours',p:{weekday_from:20,weekday_to:24,weekend:true}}].forEach(function(pr){
+      h+='<button class="mgr-btn mgr-btn-ghost" style="font-size:9px;padding:3px 8px" onclick="timeSlotRules[\''+sSn(sq.name)+'\']='+JSON.stringify(pr.p)+';saveMem(\'cf_timeslots\',timeSlotRules);renderPage()">'+pr.l+'</button>';
+    });
+    h+='</div></div>';
+  });
+  return h;
+}
+
+// ===== PAGE: SETTINGS =====
+function pgSettings(){
+  var h='<div class="page-hdr"><div class="page-title">⚙️ Settings</div><div class="page-sub">Blocker links, screensaver, expense triggers</div></div>';
+  // Blocker links
+  h+='<div class="mgr-card"><div class="mgr-card-hd">🔒 Blocker Screen Links</div><div class="mgr-card-sub">Links on morning/evening lock screens</div>';
+  ofcBlLinks.forEach(function(l,i){
+    h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:4px"><input class="mgr-inp" style="width:28px;text-align:center;font-size:13px" value="'+esc(l.ico)+'" onchange="ofcBlLinks['+i+'].ico=this.value;saveMem(\'cf_ofc_bl_links\',ofcBlLinks)"><input class="mgr-inp" style="flex:1" value="'+esc(l.name)+'" onchange="ofcBlLinks['+i+'].name=this.value;saveMem(\'cf_ofc_bl_links\',ofcBlLinks)"><span style="font-size:8px;color:'+(l.screen==='morning'?'var(--amber)':'var(--blue)')+'">'+l.screen+'</span><button class="mgr-btn mgr-btn-danger" style="padding:2px 6px;font-size:8px" onclick="ofcBlLinks.splice('+i+',1);saveMem(\'cf_ofc_bl_links\',ofcBlLinks);renderPage()">✕</button></div>';
+  });
+  h+='<div style="display:flex;gap:4px;margin-top:6px"><button class="mgr-btn mgr-btn-ghost" onclick="ofcBlLinks.push({id:\'bl_\'+Date.now(),ico:\'🔗\',name:\'New\',url:\'\',screen:\'morning\'});saveMem(\'cf_ofc_bl_links\',ofcBlLinks);renderPage()">+ Morning</button><button class="mgr-btn mgr-btn-ghost" onclick="ofcBlLinks.push({id:\'bl_\'+Date.now(),ico:\'🔗\',name:\'New\',url:\'\',screen:\'evening\'});saveMem(\'cf_ofc_bl_links\',ofcBlLinks);renderPage()">+ Evening</button></div></div>';
+  // Screensaver
+  h+='<div class="mgr-card"><div class="mgr-card-hd">✨ Screensaver</div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Idle timeout</span><input class="mgr-inp" type="number" min="1" max="120" value="'+ssTimeoutMin+'" style="width:50px" onchange="ssTimeoutMin=parseInt(this.value)||15;saveMem(\'cf_screensaver\',{messages:ssMessages,timeout:ssTimeoutMin})"><span style="font-size:9px;color:var(--text2)">min</span></div>';
+  h+='<div style="font-size:9px;color:var(--text2);margin-bottom:4px">Messages:</div>';
+  ssMessages.forEach(function(m,i){
+    h+='<div style="display:flex;gap:4px;margin-bottom:3px"><input class="mgr-inp" style="flex:1" value="'+esc(m)+'" onchange="ssMessages['+i+']=this.value;saveMem(\'cf_screensaver\',{messages:ssMessages,timeout:ssTimeoutMin})"><button class="mgr-btn mgr-btn-danger" style="padding:2px 6px;font-size:8px" onclick="ssMessages.splice('+i+',1);saveMem(\'cf_screensaver\',{messages:ssMessages,timeout:ssTimeoutMin});renderPage()">✕</button></div>';
+  });
+  h+='<button class="mgr-btn mgr-btn-ghost" style="width:100%;margin-top:4px" onclick="ssMessages.push(\'New message\');saveMem(\'cf_screensaver\',{messages:ssMessages,timeout:ssTimeoutMin});renderPage()">+ Message</button></div>';
+  // Expense triggers
+  h+='<div class="mgr-card"><div class="mgr-card-hd">💰 Smart Expense Triggers</div><div class="mgr-card-sub">Time + GPS triggers for expense logging popups</div>';
+  h+='<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:4px">⏰ Time triggers</div>';
+  (costTriggerCfg.timeTriggers||[]).forEach(function(t,i){
+    h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><button class="mgr-toggle '+(t.enabled?'on':'')+'" style="font-size:8px;padding:2px 6px" onclick="costTriggerCfg.timeTriggers['+i+'].enabled=!costTriggerCfg.timeTriggers['+i+'].enabled;saveMem(\'cf_cost_triggers\',costTriggerCfg);renderPage()">'+(t.enabled?'ON':'OFF')+'</button><input class="mgr-inp" style="width:60px" value="'+esc(t.label)+'" onchange="costTriggerCfg.timeTriggers['+i+'].label=this.value;saveMem(\'cf_cost_triggers\',costTriggerCfg)"><select class="mgr-sel" onchange="costTriggerCfg.timeTriggers['+i+'].hour=parseInt(this.value);saveMem(\'cf_cost_triggers\',costTriggerCfg)">';
+    for(var hh=5;hh<=23;hh++)h+='<option value="'+hh+'" '+(t.hour===hh?'selected':'')+'>'+String(hh).padStart(2,'0')+'</option>';
+    h+='</select><button class="mgr-btn mgr-btn-danger" style="padding:2px 6px;font-size:8px" onclick="costTriggerCfg.timeTriggers.splice('+i+',1);saveMem(\'cf_cost_triggers\',costTriggerCfg);renderPage()">✕</button></div>';
+  });
+  h+='<button class="mgr-btn mgr-btn-ghost" style="margin-top:4px" onclick="costTriggerCfg.timeTriggers.push({id:\'t\'+Date.now(),label:\'Custom\',hour:8,enabled:true});saveMem(\'cf_cost_triggers\',costTriggerCfg);renderPage()">+ Time trigger</button>';
+  h+='<div style="font-size:10px;font-weight:600;color:var(--text2);margin:10px 0 4px">📍 GPS shops</div>';
+  (costTriggerCfg.gpsShops||[]).forEach(function(s,i){
+    h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><button class="mgr-toggle '+(s.enabled?'on':'')+'" style="font-size:8px;padding:2px 6px" onclick="costTriggerCfg.gpsShops['+i+'].enabled=!costTriggerCfg.gpsShops['+i+'].enabled;saveMem(\'cf_cost_triggers\',costTriggerCfg);renderPage()">'+(s.enabled?'ON':'OFF')+'</button><input class="mgr-inp" style="flex:1" value="'+esc(s.name)+'" onchange="costTriggerCfg.gpsShops['+i+'].name=this.value;saveMem(\'cf_cost_triggers\',costTriggerCfg)"><span style="font-size:8px;color:var(--text3)">'+s.radius+'m</span><button class="mgr-btn mgr-btn-danger" style="padding:2px 6px;font-size:8px" onclick="costTriggerCfg.gpsShops.splice('+i+',1);saveMem(\'cf_cost_triggers\',costTriggerCfg);renderPage()">✕</button></div>';
+  });
+  h+='<button class="mgr-btn mgr-btn-ghost" style="margin-top:4px" onclick="costTriggerCfg.gpsShops.push({name:\'New Shop\',lat:'+(gpsLat||35.7089)+',lng:'+(gpsLng||139.9454)+',radius:80,enabled:true});saveMem(\'cf_cost_triggers\',costTriggerCfg);renderPage()">+ GPS shop</button>';
+  h+='</div>';
+  return h;
+}
+
+// ===== PAGE: COMMUTE =====
+function pgCommute(){
+  var h='<div class="page-hdr"><div class="page-title">🚃 Commute & GPS</div><div class="page-sub">Location detection, train card visibility, test mode</div></div>';
+  h+='<div class="mgr-card"><div class="mgr-card-hd">📍 GPS Status</div>';
+  if(gpsLat){
+    h+='<div style="padding:8px;background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.2);border-radius:8px;font-size:11px"><span class="dot dot-g"></span> GPS active — ±'+gpsAccuracy+'m<br><span style="font-size:9px;color:var(--text2)">'+gpsLat.toFixed(4)+', '+gpsLng.toFixed(4)+'</span></div>';
+  }else{
+    h+='<div style="padding:8px;background:var(--card2);border-radius:8px;font-size:11px;color:var(--text3)"><span class="dot dot-r"></span> No GPS data</div>';
+  }
+  h+='<div class="mgr-row" style="margin-top:8px"><span class="mgr-label">Auto-switch</span><button class="mgr-toggle '+(gpsAutoLoc?'on':'')+'" onclick="gpsAutoLoc=!gpsAutoLoc;renderPage()">'+(gpsAutoLoc?'ON':'OFF')+'</button><button class="mgr-btn mgr-btn-primary" style="margin-left:8px" onclick="navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy);renderPage()})">📡 Refresh</button></div></div>';
+  h+='<div class="mgr-card"><div class="mgr-card-hd">🚃 Train Card Visibility</div>';
+  h+='<div class="mgr-card-sub">Currently not editable here — use the main CC app Settings tab for train card window + test mode.</div>';
+  h+='</div>';
+  return h;
+}
+
+// ===== BOOT =====
+init();
+</script>
+</body>
+</html>
