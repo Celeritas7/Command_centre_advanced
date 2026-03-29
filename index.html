@@ -2072,6 +2072,7 @@ let tkvFiredToday={}; // { 'Executive_2026-03-21': true } — prevents re-trigge
 let tkvBriefText=''; // briefing text shown during takeover
 let tkvManualWaiting=false; // manual mode: overlay visible, timer paused until tap
 let tkvGpsSource=''; // GPS trigger name that fired this takeover (e.g. 'Shimosa Station')
+let tkvEndZone=null; // {lat,lng,radius,name} — takeover auto-ends when GPS reaches this zone
 
 function tkvSaveConfig(){memSave('cf_takeover_cfg',JSON.stringify(takeoverConfig))}
 function tkvSaveFired(){memSave('cf_takeover_fired',JSON.stringify(tkvFiredToday))}
@@ -2123,6 +2124,7 @@ async function tkvTrigger(sqN,opts){
   tkvBriefText='';
   tkvManualWaiting=!!opts.manual;
   tkvGpsSource=opts.gpsSource||'';
+  tkvEndZone=opts.endZone||null;
 
   // Mark as fired today
   tkvFiredToday[sqN+'_'+todayK()]=true;
@@ -2139,9 +2141,11 @@ async function tkvTrigger(sqN,opts){
     tkvBriefText=ruleBriefing(sqN);
   }
 
-  // Start timer — unless manual mode (waits for tap)
+  // Start timer — unless manual mode (waits for tap) or GPS-end mode (runs until destination)
   clearInterval(tkvTimerInt);
-  if(!tkvManualWaiting){
+  if(tkvEndZone){
+    tkvTimerRem=0; // no countdown — runs until GPS end zone
+  }else if(!tkvManualWaiting){
     tkvTimerInt=setInterval(()=>{
       if(tkvTimerRem>0)tkvTimerRem--;
       tkvRender();
@@ -2179,18 +2183,25 @@ function tkvRender(){
 
   // Timer
   const m=Math.floor(tkvTimerRem/60),s=tkvTimerRem%60;
-  if(tkvManualWaiting){
+  if(tkvEndZone){
+    // GPS-end mode: show "en route" instead of countdown
+    document.getElementById('tkvTimerText').textContent='📍 En route';
+    document.getElementById('tkvTimer').style.display='';
+    document.querySelector('#tkvTimer .tkv-timer-lbl').textContent='auto-ends at '+tkvEndZone.name;
+  }else if(tkvManualWaiting){
     document.getElementById('tkvTimerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
     document.getElementById('tkvTimer').style.display='';
+    document.querySelector('#tkvTimer .tkv-timer-lbl').textContent='minimum focus time';
   }else{
     document.getElementById('tkvTimerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
     document.getElementById('tkvTimer').style.display=tkvTimerRem>0?'':'none';
+    document.querySelector('#tkvTimer .tkv-timer-lbl').textContent='minimum focus time';
   }
 
-  // Done button — requires at least 1 task checked + timer expired (for hard lock) or just 1 checked (soft lock)
+  // Done button
   const hasChecked=tkvChecked.size>=1;
-  const timerDone=tkvTimerRem<=0&&!tkvManualWaiting;
-  const canFinish=cfg.hardLock?(hasChecked&&timerDone):hasChecked;
+  const timerDone=tkvEndZone?true:(tkvTimerRem<=0&&!tkvManualWaiting);
+  const canFinish=tkvEndZone?hasChecked:(cfg.hardLock?(hasChecked&&timerDone):hasChecked);
   const btn=document.getElementById('tkvDoneBtn');
 
   // Manual mode: show "▶ Start Timer" button instead of Done
@@ -2204,9 +2215,10 @@ function tkvRender(){
     btn.onclick=tkvFinish;
   }
 
-  // Skip button — only for soft lock
-  document.getElementById('tkvSkipBtn').style.display=cfg.hardLock?'none':'';
+  // Skip button — always visible for GPS-end mode, otherwise soft lock only
+  document.getElementById('tkvSkipBtn').style.display=(tkvEndZone||!cfg.hardLock)?'':'none';
   document.getElementById('tkvPenalty').textContent=
+    tkvEndZone?'GPS mode — auto-ends at '+tkvEndZone.name+', or skip':
     tkvManualWaiting?'Manual mode — start timer when you\'re ready':
     cfg.hardLock?'Hard lock — complete tasks + timer to unlock':
     'Soft lock — skip resets your '+p.name+' streak';
@@ -2232,12 +2244,14 @@ function tkvToggle(taskId){
   tkvRender();
 }
 
-function tkvFinish(){
+function tkvFinish(force){
   const cfg=tkvResolve(takeoverConfig[tkvActive]);
-  const hasChecked=tkvChecked.size>=1;
-  const timerDone=tkvTimerRem<=0;
-  const canFinish=cfg.hardLock?(hasChecked&&timerDone):hasChecked;
-  if(!canFinish)return;
+  if(!force){
+    const hasChecked=tkvChecked.size>=1;
+    const timerDone=tkvEndZone?true:(tkvTimerRem<=0);
+    const canFinish=tkvEndZone?hasChecked:(cfg.hardLock?(hasChecked&&timerDone):hasChecked);
+    if(!canFinish)return;
+  }
 
   // Update streak
   const sqN=tkvActive;
@@ -2268,6 +2282,7 @@ function tkvClose(){
   tkvActive=null;
   tkvManualWaiting=false;
   tkvGpsSource='';
+  tkvEndZone=null;
   clearInterval(tkvTimerInt);
   tkvChecked=new Set();
   OQ.dismiss('takeover');
@@ -2849,6 +2864,14 @@ function gpsCheck(){
     gpsAccuracy=Math.round(pos.coords.accuracy);gpsTime=Date.now();
     if(gpsAutoLoc){var det=gpsDetectLoc();if(det&&det!==loc)setLoc(det)}
     else renderPitch();
+    // Check if active takeover's GPS end zone has been reached
+    if(tkvActive&&tkvEndZone){
+      var endDist=gpsDistM(gpsLat,gpsLng,tkvEndZone.lat,tkvEndZone.lng);
+      if(endDist<=tkvEndZone.radius){
+        console.log('GPS end zone reached:',tkvEndZone.name,'('+Math.round(endDist)+'m)');
+        tkvFinish(true); // force-close: arrived at destination
+      }
+    }
     // Trigger engine — fires independently of zone detection
     gpsCheckTriggers();
     // Cost triggers on GPS update
@@ -2936,7 +2959,11 @@ function gpsTriggerFire(trig){
         tasks:[{id:'gt1',text:'Complete pending study items',ico:'📖',done:false}],
         timerMin:15};
     }
-    tkvTrigger(trig.squad,{manual:mode==='manual',gpsSource:'📍 '+trig.name});
+    tkvTrigger(trig.squad,{
+      manual:mode==='manual',
+      gpsSource:'📍 '+trig.name,
+      endZone:trig.end_lat?{lat:trig.end_lat,lng:trig.end_lng,radius:trig.end_radius||500,name:trig.end_name||'destination'}:null
+    });
   }else if(trig.action==='cost_popup'){
     if(!OQ.active()){
       const pf=smartPrefillTime();
