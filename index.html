@@ -1164,7 +1164,7 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
   <div class="tkv-streak" id="tkvStreak"></div>
   <div class="tkv-tasks" id="tkvTasks"></div>
   <div class="tkv-timer" id="tkvTimer"><div class="tkv-timer-text" id="tkvTimerText">15:00</div><div class="tkv-timer-lbl">minimum focus time</div></div>
-  <div class="tkv-btns"><button class="tkv-btn done waiting" id="tkvDoneBtn" onclick="tkvFinish()">✓ Done</button></div>
+  <div class="tkv-btns"><button class="tkv-btn done waiting" id="tkvDoneBtn">✓ Done</button></div>
   <button class="tkv-btn skip" id="tkvSkipBtn" onclick="tkvSkip()" style="margin-top:10px">Skip — streak resets</button>
   <div class="tkv-penalty" id="tkvPenalty"></div>
 </div>
@@ -2070,6 +2070,8 @@ let tkvTimerRem=0,tkvTimerInt=null;
 let tkvChecked=new Set();
 let tkvFiredToday={}; // { 'Executive_2026-03-21': true } — prevents re-trigger same day
 let tkvBriefText=''; // briefing text shown during takeover
+let tkvManualWaiting=false; // manual mode: overlay visible, timer paused until tap
+let tkvGpsSource=''; // GPS trigger name that fired this takeover (e.g. 'Shimosa Station')
 
 function tkvSaveConfig(){memSave('cf_takeover_cfg',JSON.stringify(takeoverConfig))}
 function tkvSaveFired(){memSave('cf_takeover_fired',JSON.stringify(tkvFiredToday))}
@@ -2108,7 +2110,8 @@ function tkvCheck(){
   }
 }
 
-async function tkvTrigger(sqN){
+async function tkvTrigger(sqN,opts){
+  opts=opts||{};
   const baseCfg=takeoverConfig[sqN];
   const cfg=tkvResolve(baseCfg);
   const p=PERSONALITIES[sqN];
@@ -2118,6 +2121,8 @@ async function tkvTrigger(sqN){
   tkvChecked=new Set();
   tkvTimerRem=cfg.timerMin*60;
   tkvBriefText='';
+  tkvManualWaiting=!!opts.manual;
+  tkvGpsSource=opts.gpsSource||'';
 
   // Mark as fired today
   tkvFiredToday[sqN+'_'+todayK()]=true;
@@ -2134,12 +2139,14 @@ async function tkvTrigger(sqN){
     tkvBriefText=ruleBriefing(sqN);
   }
 
-  // Start timer
+  // Start timer — unless manual mode (waits for tap)
   clearInterval(tkvTimerInt);
-  tkvTimerInt=setInterval(()=>{
-    if(tkvTimerRem>0)tkvTimerRem--;
-    tkvRender();
-  },1000);
+  if(!tkvManualWaiting){
+    tkvTimerInt=setInterval(()=>{
+      if(tkvTimerRem>0)tkvTimerRem--;
+      tkvRender();
+    },1000);
+  }
 
   tkvRender();
   // Show via OQ — captures sqN in closure for correct team styling
@@ -2158,7 +2165,7 @@ function tkvRender(){
 
   document.getElementById('tkvIco').textContent=p.ico;
   document.getElementById('tkvTitle').textContent=p.name+' Team — Takeover';
-  document.getElementById('tkvTone').textContent='"'+p.tone+'" mode active';
+  document.getElementById('tkvTone').textContent=tkvGpsSource?'📍 '+tkvGpsSource:'"'+p.tone+'" mode active';
   document.getElementById('tkvBriefText').textContent=tkvBriefText||'...';
   document.getElementById('tkvBriefMeta').textContent=ccApiKey?'🤖 AI briefing':'📝 Rule-based';
   document.getElementById('tkvStreak').textContent=streak.streak>0?'🔥 Current streak: '+streak.streak+' days':'No streak yet — start one now';
@@ -2172,23 +2179,51 @@ function tkvRender(){
 
   // Timer
   const m=Math.floor(tkvTimerRem/60),s=tkvTimerRem%60;
-  document.getElementById('tkvTimerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-  document.getElementById('tkvTimer').style.display=tkvTimerRem>0?'':'none';
+  if(tkvManualWaiting){
+    document.getElementById('tkvTimerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    document.getElementById('tkvTimer').style.display='';
+  }else{
+    document.getElementById('tkvTimerText').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    document.getElementById('tkvTimer').style.display=tkvTimerRem>0?'':'none';
+  }
 
   // Done button — requires at least 1 task checked + timer expired (for hard lock) or just 1 checked (soft lock)
   const hasChecked=tkvChecked.size>=1;
-  const timerDone=tkvTimerRem<=0;
+  const timerDone=tkvTimerRem<=0&&!tkvManualWaiting;
   const canFinish=cfg.hardLock?(hasChecked&&timerDone):hasChecked;
   const btn=document.getElementById('tkvDoneBtn');
-  btn.className='tkv-btn '+(canFinish?'done':'waiting');
-  btn.textContent=canFinish?'✓ Done — unlock app':'✓ Done';
+
+  // Manual mode: show "▶ Start Timer" button instead of Done
+  if(tkvManualWaiting){
+    btn.className='tkv-btn done';
+    btn.textContent='▶ Start Timer';
+    btn.onclick=tkvStartTimer;
+  }else{
+    btn.className='tkv-btn '+(canFinish?'done':'waiting');
+    btn.textContent=canFinish?'✓ Done — unlock app':'✓ Done';
+    btn.onclick=tkvFinish;
+  }
 
   // Skip button — only for soft lock
   document.getElementById('tkvSkipBtn').style.display=cfg.hardLock?'none':'';
-  document.getElementById('tkvPenalty').textContent=cfg.hardLock?'Hard lock — complete tasks + timer to unlock':'Soft lock — skip resets your '+p.name+' streak';
+  document.getElementById('tkvPenalty').textContent=
+    tkvManualWaiting?'Manual mode — start timer when you\'re ready':
+    cfg.hardLock?'Hard lock — complete tasks + timer to unlock':
+    'Soft lock — skip resets your '+p.name+' streak';
 
   // Update task cb color to match team
   document.querySelectorAll('#tkvTasks .tkv-task-cb.checked::after');
+}
+
+function tkvStartTimer(){
+  if(!tkvManualWaiting||!tkvActive)return;
+  tkvManualWaiting=false;
+  clearInterval(tkvTimerInt);
+  tkvTimerInt=setInterval(()=>{
+    if(tkvTimerRem>0)tkvTimerRem--;
+    tkvRender();
+  },1000);
+  tkvRender();
 }
 
 function tkvToggle(taskId){
@@ -2231,6 +2266,8 @@ function tkvSkip(){
 
 function tkvClose(){
   tkvActive=null;
+  tkvManualWaiting=false;
+  tkvGpsSource='';
   clearInterval(tkvTimerInt);
   tkvChecked=new Set();
   OQ.dismiss('takeover');
@@ -2789,7 +2826,7 @@ function gpsTriggerFire(trig){
   const mode=trig.start_on||'immediate';
 
   if(mode==='app_open'){
-    // Save to pending — will show on next app open/focus (Step 4 wires UI)
+    // Save to pending — will show on next app open/focus
     const existing=gpsTriggerPending.find(p=>p.id===trig.id);
     if(!existing){
       gpsTriggerPending.push({id:trig.id,name:trig.name,action:trig.action,squad:trig.squad,start_on:mode,firedAt:Date.now()});
@@ -2799,24 +2836,18 @@ function gpsTriggerFire(trig){
     return;
   }
 
-  if(mode==='manual'){
-    // Show takeover but timer waits for tap (Step 4 wires UI)
-    // For now, treat as immediate
-  }
-
-  // === immediate (or manual fallback) ===
+  // === immediate or manual ===
   if(trig.action==='takeover'&&trig.squad){
     if(tkvActive)return; // already in a takeover
     if(OQ.has('takeover'))return;
     // Ensure squad exists in takeoverConfig
     if(!takeoverConfig[trig.squad]){
-      // Create a minimal config for GPS-triggered squad
       takeoverConfig[trig.squad]={enabled:true,hardLock:false,timeFrom:0,timeTo:24,
         days:['weekday','weekend'],loc:['home','office','outside'],
         tasks:[{id:'gt1',text:'Complete pending study items',ico:'📖',done:false}],
         timerMin:15};
     }
-    tkvTrigger(trig.squad);
+    tkvTrigger(trig.squad,{manual:mode==='manual',gpsSource:trig.name});
   }else if(trig.action==='cost_popup'){
     if(!OQ.active()){
       const pf=smartPrefillTime();
@@ -2842,8 +2873,8 @@ function gpsCheckPendingTriggers(){
   gpsTriggerPending=gpsTriggerPending.filter(x=>x.id!==p.id);
   gpsTriggerSavePending();
   console.log('GPS trigger pending fire:',p.name,p.action);
-  // Reconstruct a trigger-like object for gpsTriggerFire
-  gpsTriggerFire({...p,start_on:'immediate'}); // force immediate since grace period is done
+  // Force immediate since grace period is done — keep name for UI
+  gpsTriggerFire({...p,start_on:'immediate'});
 }
 
 // Init cooldowns and pending from localStorage
