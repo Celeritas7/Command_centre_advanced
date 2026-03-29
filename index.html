@@ -2165,7 +2165,7 @@ function tkvRender(){
 
   document.getElementById('tkvIco').textContent=p.ico;
   document.getElementById('tkvTitle').textContent=p.name+' Team — Takeover';
-  document.getElementById('tkvTone').textContent=tkvGpsSource?'📍 '+tkvGpsSource:'"'+p.tone+'" mode active';
+  document.getElementById('tkvTone').textContent=tkvGpsSource||'"'+p.tone+'" mode active';
   document.getElementById('tkvBriefText').textContent=tkvBriefText||'...';
   document.getElementById('tkvBriefMeta').textContent=ccApiKey?'🤖 AI briefing':'📝 Rule-based';
   document.getElementById('tkvStreak').textContent=streak.streak>0?'🔥 Current streak: '+streak.streak+' days':'No streak yet — start one now';
@@ -2276,6 +2276,95 @@ function tkvClose(){
 
 // Run takeover check every minute
 setInterval(tkvCheck,60000);
+
+// ===== DAY PLANS INTERRUPT SCHEDULER =====
+// Reads Day Plans from Supabase and fires interrupts through OQ via takeover system.
+// "Base activity + scheduled blockers" — interrupts are time-scheduled takeovers.
+var dayPlans=null; // {weekday:{base,location,interrupts:[...]}, weekend:{...}} — loaded from brain settings
+var dpFiredToday={}; // {'wd1_2026-03-29':true} — prevents re-fire same day
+
+function dpLoadFired(){
+  try{var d=JSON.parse(localStorage.getItem('cc_dp_fired')||'{}');
+    // Clear stale entries (not today)
+    var today=todayK();Object.keys(d).forEach(function(k){if(!k.endsWith('_'+today))delete d[k]});
+    dpFiredToday=d;
+  }catch(e){dpFiredToday={}}
+}
+function dpSaveFired(){try{localStorage.setItem('cc_dp_fired',JSON.stringify(dpFiredToday))}catch(e){}}
+
+async function loadDayPlans(){
+  try{
+    var r=await sb.from('command_centre_brain_settings').select('value').eq('key','day_plans').single();
+    if(r.data&&r.data.value)dayPlans=r.data.value;
+    if(dayPlans)console.log('Day Plans loaded:',Object.keys(dayPlans).join(', '));
+  }catch(e){console.warn('Day Plans load:',e)}
+}
+
+function dpCheckInterrupts(){
+  if(!dayPlans||emergencyMode)return;
+  if(tkvActive)return; // don't interrupt an active takeover
+  if(isSleepTime())return; // sleep gate handles this window
+
+  var dt=dayType();
+  var plan=dayPlans[dt];
+  if(!plan||!plan.interrupts||!plan.interrupts.length)return;
+
+  var now=new Date();
+  var nowMin=now.getHours()*60+now.getMinutes();
+  var today=todayK();
+
+  for(var k=0;k<plan.interrupts.length;k++){
+    var intr=plan.interrupts[k];
+    if(!intr.time||!intr.squad)continue;
+
+    var firedKey=(intr.id||'dp'+k)+'_'+today;
+    if(dpFiredToday[firedKey])continue; // already fired
+
+    // Parse time "HH:MM" → minutes
+    var parts=intr.time.split(':');
+    var intrMin=parseInt(parts[0])*60+parseInt(parts[1]);
+
+    // Fire if within 2-minute window of scheduled time
+    if(nowMin>=intrMin&&nowMin<intrMin+2){
+      console.log('Day Plan interrupt fire:',intr.time,intr.squad);
+      dpFiredToday[firedKey]=true;
+      dpSaveFired();
+      dpFireInterrupt(intr);
+      return; // one at a time
+    }
+  }
+}
+
+function dpFireInterrupt(intr){
+  var sqN=intr.squad;
+  // Build temporary takeover config for this interrupt
+  var intrCfg={
+    enabled:true,
+    hardLock:!!intr.hardLock,
+    timeFrom:0,timeTo:24,
+    days:['weekday','weekend','holiday'],
+    loc:['home','office','outside'],
+    tasks:(intr.tasks||[]).map(function(t,i){return{id:'dp_'+i,text:t.text,ico:t.ico,done:false}}),
+    timerMin:intr.duration||15
+  };
+
+  // Ensure the squad personality exists (fallback if custom)
+  if(!PERSONALITIES[sqN]){
+    PERSONALITIES[sqN]={ico:'📅',name:sqN,tone:'focused',emergencyBehavior:'SILENT',
+      briefing:function(){return'Scheduled interrupt: '+sqN}};
+  }
+
+  // Store as temporary takeover config (won't persist — just for this session)
+  takeoverConfig[sqN]=Object.assign({},takeoverConfig[sqN]||{},intrCfg);
+
+  // Fire as takeover with Day Plan source label
+  var label='📅 '+intr.time+' — '+sqN;
+  tkvTrigger(sqN,{gpsSource:label});
+}
+
+// Run Day Plans check every 60 seconds
+setInterval(dpCheckInterrupts,60000);
+dpLoadFired();
 
 // Helpers
 function todayK(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -2847,7 +2936,7 @@ function gpsTriggerFire(trig){
         tasks:[{id:'gt1',text:'Complete pending study items',ico:'📖',done:false}],
         timerMin:15};
     }
-    tkvTrigger(trig.squad,{manual:mode==='manual',gpsSource:trig.name});
+    tkvTrigger(trig.squad,{manual:mode==='manual',gpsSource:'📍 '+trig.name});
   }else if(trig.action==='cost_popup'){
     if(!OQ.active()){
       const pf=smartPrefillTime();
@@ -5084,6 +5173,7 @@ function renderBrainStatus(){
   h+='<div>📊 OQ Active: <strong>'+(OQ.current()||'None')+'</strong> ('+OQ.size()+' queued: '+OQ.types()+')</div>';
   h+='<div>🛰️ GPS Locs: <strong>'+(gpsLocsLoaded?gpsZones.length+'z/'+gpsTriggers.length+'t':'fallback')+'</strong></div>';
   h+='<div>🎯 Pending: <strong>'+gpsTriggerPending.length+'</strong> CD: <strong>'+Object.keys(gpsTriggerCooldowns).length+'</strong></div>';
+  h+='<div>📅 Day Plan: <strong>'+(dayPlans?Object.keys(dayPlans).join('/'):'not loaded')+'</strong> Fired: <strong>'+Object.keys(dpFiredToday).length+'</strong></div>';
   h+='<div>😊 Mood: <strong>'+mood+'</strong></div>';
   h+='</div></div>';
 
@@ -5442,6 +5532,7 @@ async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(up
   await loadAll();await checkAndReactivate();
   // Load brain configs (non-blocking)
   loadClashConfig();loadPersonalityConfig();
+  loadDayPlans().then(function(){setTimeout(dpCheckInterrupts,5000)});
   // Load calendar integrations (non-blocking — app renders while these fetch)
   loadHolidays().then(()=>{updateBadge();renderPitch()});
   loadPersonalDaysOff();

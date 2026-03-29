@@ -195,10 +195,8 @@ var clashRules={weekendShieldsUp:{enabled:true,beforeHour:13,description:'Defend
 var allTasks=[],playerMap={},timeSlotRules={},ofcBlLinks=[],ssMessages=[],ssTimeoutMin=15;
 var costTriggerCfg={timeTriggers:[],gpsShops:[],gpsCooldownMin:15,officeDeparture:{enabled:true,delayMin:2}};
 var gpsLat=0,gpsLng=0,gpsAccuracy=0,gpsAutoLoc=true;
-var gpsLocations={
-  home:{name:'Home',lat:35.7089,lng:139.9454,radius:500,ico:'🏠'},
-  office:{name:'Office',lat:35.5791,lng:139.7485,radius:500,ico:'🏢'},
-};
+var gpsZones=[];    // [{id,name,lat,lng,radius,loc_state,sort_order,...}] from command_centre_gps_locations
+var gpsTriggers=[]; // [{id,name,lat,lng,radius,action,squad,start_on,time_from,time_to,days,cooldown_min,...}]
 var ccApiKey='',brainSettings={},customSquads={};
 var personalities={};
 
@@ -256,7 +254,13 @@ async function init(){
     });
     // Load brain settings
     var{data:bs}=await sb.from('command_centre_brain_settings').select('key,value');
-    (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{};if(r.key==='day_plans')dayPlans=r.value||dayPlans;if(r.key==='gps_locations')gpsLocations=r.value||gpsLocations});
+    (bs||[]).forEach(function(r){brainSettings[r.key]=r.value;if(r.key==='clash_config'){if(r.value.priorities)clashPriorities=r.value.priorities;if(r.value.rules)clashRules=r.value.rules}if(r.key==='personalities')personalities=r.value||{};if(r.key==='day_plans')dayPlans=r.value||dayPlans});
+    // Load GPS locations from dedicated table
+    var{data:gpsData}=await sb.from('command_centre_gps_locations').select('*').order('sort_order');
+    if(gpsData&&gpsData.length){
+      gpsZones=gpsData.filter(function(r){return r.type==='zone'});
+      gpsTriggers=gpsData.filter(function(r){return r.type==='trigger'});
+    }
     // GPS
     if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy)},function(){},{timeout:8000});
   }catch(e){console.error('Init error:',e)}
@@ -269,7 +273,18 @@ async function saveTakeover(){await saveMem('cf_takeover_cfg',takeoverConfig)}
 async function saveClash(){await sb.from('command_centre_brain_settings').upsert({key:'clash_config',value:{priorities:clashPriorities,rules:clashRules}},{onConflict:'key'})}
 async function savePersonalities(){await sb.from('command_centre_brain_settings').upsert({key:'personalities',value:personalities},{onConflict:'key'})}
 async function saveDayPlans(){await sb.from('command_centre_brain_settings').upsert({key:'day_plans',value:dayPlans},{onConflict:'key'})}
-async function saveGpsLocations(){await sb.from('command_centre_brain_settings').upsert({key:'gps_locations',value:gpsLocations},{onConflict:'key'})}
+async function saveGpsLoc(row){
+  var{id,...rest}=row;rest.updated_at=new Date().toISOString();
+  if(id){await sb.from('command_centre_gps_locations').update(rest).eq('id',id)}
+  else{var{data}=await sb.from('command_centre_gps_locations').insert(rest).select();if(data&&data[0])return data[0]}
+  return row;
+}
+async function deleteGpsLoc(id){await sb.from('command_centre_gps_locations').delete().eq('id',id)}
+async function reloadGpsLocs(){
+  var{data}=await sb.from('command_centre_gps_locations').select('*').order('sort_order');
+  gpsZones=(data||[]).filter(function(r){return r.type==='zone'});
+  gpsTriggers=(data||[]).filter(function(r){return r.type==='trigger'});
+}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function sSn(s){return s.replace(/'/g,"\\'")}
 function isWeekend(){var d=new Date().getDay();return d===0||d===6}
@@ -791,7 +806,7 @@ function pgSettings(){
 
 // ===== PAGE: COMMUTE =====
 function pgCommute(){
-  var h='<div class="page-hdr"><div class="page-title">🚃 Commute & GPS</div><div class="page-sub">Location detection, saved places, train card</div></div>';
+  var h='<div class="page-hdr"><div class="page-title">🚃 Commute & GPS</div><div class="page-sub">Zones set your location. Triggers fire actions when you enter a radius.</div></div>';
 
   // GPS Status
   h+='<div class="mgr-card"><div class="mgr-card-hd">📡 GPS Status</div>';
@@ -802,40 +817,110 @@ function pgCommute(){
   }
   h+='<div class="mgr-row"><span class="mgr-label">Auto-switch</span><button class="mgr-toggle '+(gpsAutoLoc?'on':'')+'" onclick="gpsAutoLoc=!gpsAutoLoc;renderPage()">'+(gpsAutoLoc?'ON':'OFF')+'</button><button class="mgr-btn mgr-btn-primary" style="margin-left:8px" onclick="navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(p){gpsLat=p.coords.latitude;gpsLng=p.coords.longitude;gpsAccuracy=Math.round(p.coords.accuracy);renderPage()})">📡 Refresh</button></div></div>';
 
-  // Saved Locations
-  h+='<div class="mgr-card"><div class="mgr-card-hd">📍 Saved Locations</div>';
-  h+='<div class="mgr-card-sub">The brain uses these to auto-detect where you are and fire location-based triggers. Radius = how close you need to be for detection.</div>';
+  // ===== ZONES =====
+  h+='<div class="mgr-card"><div class="mgr-card-hd">🗺️ Zones <span style="font-size:9px;color:var(--text3);font-weight:400">— set app location state</span></div>';
+  h+='<div class="mgr-card-sub">When GPS detects you inside a zone\'s radius, the app switches to that location (home/office/outside). Smallest radius wins if zones overlap.</div>';
 
-  Object.entries(gpsLocations).forEach(function(e){
-    var key=e[0],loc=e[1];
+  gpsZones.forEach(function(z,i){
     var dist='';
     if(gpsLat){
-      var R=6371000,dLat=(loc.lat-gpsLat)*Math.PI/180,dLon=(loc.lng-gpsLng)*Math.PI/180;
-      var a=Math.sin(dLat/2)**2+Math.cos(gpsLat*Math.PI/180)*Math.cos(loc.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+      var R=6371000,dLat=(z.lat-gpsLat)*Math.PI/180,dLon=(z.lng-gpsLng)*Math.PI/180;
+      var a=Math.sin(dLat/2)**2+Math.cos(gpsLat*Math.PI/180)*Math.cos(z.lat*Math.PI/180)*Math.sin(dLon/2)**2;
       var d=Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
-      var inside=d<=loc.radius;
+      var inside=d<=z.radius;
       dist='<span style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;'+(inside?'background:rgba(56,161,105,.15);color:var(--green)':'background:var(--card2);color:var(--text3)')+'">'+d+'m '+(inside?'● INSIDE':'away')+'</span>';
     }
 
-    h+='<div style="background:var(--bg);border:1px solid var(--amberBd);border-radius:8px;padding:10px;margin-bottom:6px">';
-    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:16px">'+(loc.ico||'📍')+'</span><input class="mgr-inp" style="flex:1;font-size:12px;font-weight:700" value="'+esc(loc.name)+'" onchange="gpsLocations[\''+key+'\'].name=this.value;saveGpsLocations()">'+dist+'</div>';
+    h+='<div style="background:var(--bg);border:1px solid var(--amberBd);border-radius:8px;padding:10px;margin-bottom:6px;opacity:'+(z.enabled?'1':'.5')+'">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:14px">'+(z.loc_state==='home'?'🏠':z.loc_state==='office'?'🏢':'🌳')+'</span><input class="mgr-inp" style="flex:1;font-size:12px;font-weight:700" value="'+esc(z.name)+'" onchange="gpsZones['+i+'].name=this.value;saveGpsLoc(gpsZones['+i+'])">'+dist+'</div>';
 
-    h+='<div class="mgr-row"><span class="mgr-label">Latitude</span><input class="mgr-inp" type="number" step="0.0001" style="flex:1" value="'+loc.lat+'" onchange="gpsLocations[\''+key+'\'].lat=parseFloat(this.value);saveGpsLocations();renderPage()"></div>';
-    h+='<div class="mgr-row"><span class="mgr-label">Longitude</span><input class="mgr-inp" type="number" step="0.0001" style="flex:1" value="'+loc.lng+'" onchange="gpsLocations[\''+key+'\'].lng=parseFloat(this.value);saveGpsLocations();renderPage()"></div>';
-    h+='<div class="mgr-row"><span class="mgr-label">Radius</span><select class="mgr-sel" onchange="gpsLocations[\''+key+'\'].radius=parseInt(this.value);saveGpsLocations();renderPage()">';
-    [100,200,300,500,750,1000].forEach(function(r){h+='<option value="'+r+'" '+(loc.radius===r?'selected':'')+'>'+r+'m</option>'});
+    h+='<div class="mgr-row"><span class="mgr-label">Lat / Lng</span><input class="mgr-inp" type="number" step="0.0001" style="width:90px" value="'+z.lat+'" onchange="gpsZones['+i+'].lat=parseFloat(this.value);saveGpsLoc(gpsZones['+i+']);renderPage()"><input class="mgr-inp" type="number" step="0.0001" style="width:90px;margin-left:4px" value="'+z.lng+'" onchange="gpsZones['+i+'].lng=parseFloat(this.value);saveGpsLoc(gpsZones['+i+']);renderPage()"></div>';
+
+    h+='<div class="mgr-row"><span class="mgr-label">Radius</span><select class="mgr-sel" onchange="gpsZones['+i+'].radius=parseInt(this.value);saveGpsLoc(gpsZones['+i+']);renderPage()">';
+    [100,200,300,500,750,1000].forEach(function(r){h+='<option value="'+r+'" '+(z.radius===r?'selected':'')+'>'+r+'m</option>'});
+    h+='</select><span class="mgr-label" style="margin-left:12px">Sets loc</span><select class="mgr-sel" onchange="gpsZones['+i+'].loc_state=this.value;saveGpsLoc(gpsZones['+i+'])">';
+    ['home','office','outside'].forEach(function(s){h+='<option value="'+s+'" '+(z.loc_state===s?'selected':'')+'>'+s+'</option>'});
     h+='</select></div>';
-    h+='<div class="mgr-row"><span class="mgr-label">Icon</span><input class="mgr-inp" style="width:40px;text-align:center;font-size:16px" value="'+esc(loc.ico||'📍')+'" onchange="gpsLocations[\''+key+'\'].ico=this.value;saveGpsLocations();renderPage()"></div>';
 
     h+='<div style="display:flex;gap:4px;margin-top:6px">';
-    if(gpsLat)h+='<button class="mgr-btn mgr-btn-primary" style="font-size:9px" onclick="gpsLocations[\''+key+'\'].lat='+gpsLat+';gpsLocations[\''+key+'\'].lng='+gpsLng+';saveGpsLocations();renderPage()">📍 Pin to current GPS</button>';
-    if(key!=='home'&&key!=='office')h+='<button class="mgr-btn mgr-btn-danger" style="font-size:9px" onclick="delete gpsLocations[\''+key+'\'];saveGpsLocations();renderPage()">Remove</button>';
-    h+='</div>';
-    h+='</div>';
+    if(gpsLat)h+='<button class="mgr-btn mgr-btn-primary" style="font-size:9px" onclick="gpsZones['+i+'].lat='+gpsLat+';gpsZones['+i+'].lng='+gpsLng+';saveGpsLoc(gpsZones['+i+']);renderPage()">📍 Pin to GPS</button>';
+    h+='<button class="mgr-btn" style="font-size:9px" onclick="gpsZones['+i+'].enabled=!gpsZones['+i+'].enabled;saveGpsLoc(gpsZones['+i+']);renderPage()">'+(z.enabled?'Disable':'Enable')+'</button>';
+    h+='<button class="mgr-btn mgr-btn-danger" style="font-size:9px" onclick="if(confirm(\'Delete zone: '+esc(z.name)+'?\')){deleteGpsLoc(gpsZones['+i+'].id).then(function(){return reloadGpsLocs()}).then(renderPage)}">Delete</button>';
+    h+='</div></div>';
   });
 
-  // Add new location
-  h+='<button class="mgr-btn mgr-btn-ghost" style="width:100%;margin-top:6px" onclick="var k=\'loc_\'+Date.now();gpsLocations[k]={name:\'New Place\',lat:'+(gpsLat||35.7)+',lng:'+(gpsLng||139.9)+',radius:300,ico:\'📍\'};saveGpsLocations();renderPage()">+ Add location</button>';
+  h+='<button class="mgr-btn mgr-btn-ghost" style="width:100%;margin-top:6px" onclick="saveGpsLoc({name:\'New Zone\',lat:'+(gpsLat||35.7)+',lng:'+(gpsLng||139.9)+',radius:500,type:\'zone\',loc_state:\'outside\',enabled:true,sort_order:'+gpsZones.length+'}).then(function(){return reloadGpsLocs()}).then(renderPage)">+ Add zone</button>';
+  h+='</div>';
+
+  // ===== TRIGGERS =====
+  h+='<div class="mgr-card"><div class="mgr-card-hd">⚡ Triggers <span style="font-size:9px;color:var(--text3);font-weight:400">— fire actions when entering radius</span></div>';
+  h+='<div class="mgr-card-sub">Triggers fire independently of zones. Each has its own cooldown, time window, and day filter. Actions: takeover (locks app with squad tasks), cost_popup (expense prompt), notification (system alert).</div>';
+
+  if(!gpsTriggers.length){
+    h+='<div style="padding:16px;text-align:center;font-size:11px;color:var(--text3)">No triggers yet — add one below</div>';
+  }
+
+  gpsTriggers.forEach(function(t,i){
+    var dist='';
+    if(gpsLat){
+      var R=6371000,dLat=(t.lat-gpsLat)*Math.PI/180,dLon=(t.lng-gpsLng)*Math.PI/180;
+      var a=Math.sin(dLat/2)**2+Math.cos(gpsLat*Math.PI/180)*Math.cos(t.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+      var d=Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+      var inside=d<=t.radius;
+      dist='<span style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;'+(inside?'background:rgba(56,161,105,.15);color:var(--green)':'background:var(--card2);color:var(--text3)')+'">'+d+'m '+(inside?'● IN RANGE':'away')+'</span>';
+    }
+
+    var actionIco=t.action==='takeover'?'⚡':t.action==='cost_popup'?'💰':'🔔';
+
+    h+='<div style="background:var(--bg);border:1px solid '+(t.enabled?'var(--amberBd)':'var(--card2)')+';border-radius:8px;padding:10px;margin-bottom:6px;opacity:'+(t.enabled?'1':'.5')+'">';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:14px">'+actionIco+'</span><input class="mgr-inp" style="flex:1;font-size:12px;font-weight:700" value="'+esc(t.name)+'" onchange="gpsTriggers['+i+'].name=this.value;saveGpsLoc(gpsTriggers['+i+'])">'+dist+'</div>';
+
+    // Row 1: Lat/Lng + Radius
+    h+='<div class="mgr-row"><span class="mgr-label">Lat / Lng</span><input class="mgr-inp" type="number" step="0.0001" style="width:90px" value="'+t.lat+'" onchange="gpsTriggers['+i+'].lat=parseFloat(this.value);saveGpsLoc(gpsTriggers['+i+']);renderPage()"><input class="mgr-inp" type="number" step="0.0001" style="width:90px;margin-left:4px" value="'+t.lng+'" onchange="gpsTriggers['+i+'].lng=parseFloat(this.value);saveGpsLoc(gpsTriggers['+i+']);renderPage()"></div>';
+    h+='<div class="mgr-row"><span class="mgr-label">Radius</span><select class="mgr-sel" onchange="gpsTriggers['+i+'].radius=parseInt(this.value);saveGpsLoc(gpsTriggers['+i+']);renderPage()">';
+    [100,200,300,500,750,1000].forEach(function(r){h+='<option value="'+r+'" '+(t.radius===r?'selected':'')+'>'+r+'m</option>'});
+    h+='</select></div>';
+
+    // Row 2: Action + Squad
+    h+='<div class="mgr-row"><span class="mgr-label">Action</span><select class="mgr-sel" onchange="gpsTriggers['+i+'].action=this.value;saveGpsLoc(gpsTriggers['+i+']);renderPage()">';
+    ['takeover','cost_popup','notification'].forEach(function(a){h+='<option value="'+a+'" '+(t.action===a?'selected':'')+'>'+a+'</option>'});
+    h+='</select>';
+    if(t.action==='takeover'){
+      h+='<span class="mgr-label" style="margin-left:8px">Squad</span><input class="mgr-inp" style="flex:1" value="'+esc(t.squad||'')+'" onchange="gpsTriggers['+i+'].squad=this.value;saveGpsLoc(gpsTriggers['+i+'])" placeholder="e.g. Quick Study">';
+    }
+    h+='</div>';
+
+    // Row 3: Start mode
+    h+='<div class="mgr-row"><span class="mgr-label">Start</span><select class="mgr-sel" onchange="gpsTriggers['+i+'].start_on=this.value;saveGpsLoc(gpsTriggers['+i+'])">';
+    [{v:'immediate',l:'⚡ Immediate'},{v:'app_open',l:'📱 App open (2m grace)'},{v:'manual',l:'👆 Manual (tap to start)'}].forEach(function(o){h+='<option value="'+o.v+'" '+(t.start_on===o.v?'selected':'')+'>'+o.l+'</option>'});
+    h+='</select></div>';
+
+    // Row 4: Time window
+    h+='<div class="mgr-row"><span class="mgr-label">Window</span><input class="mgr-inp" type="number" step="0.5" min="0" max="24" style="width:50px" value="'+(t.time_from!=null?t.time_from:'')+'" onchange="gpsTriggers['+i+'].time_from=this.value?parseFloat(this.value):null;saveGpsLoc(gpsTriggers['+i+'])" placeholder="from"><span style="font-size:10px;color:var(--text3);margin:0 4px">→</span><input class="mgr-inp" type="number" step="0.5" min="0" max="24" style="width:50px" value="'+(t.time_to!=null?t.time_to:'')+'" onchange="gpsTriggers['+i+'].time_to=this.value?parseFloat(this.value):null;saveGpsLoc(gpsTriggers['+i+'])" placeholder="to"><span style="font-size:9px;color:var(--text3);margin-left:6px">'+(t.time_from!=null&&t.time_to!=null?String(Math.floor(t.time_from)).padStart(2,'0')+':'+String(Math.round((t.time_from%1)*60)).padStart(2,'0')+' — '+String(Math.floor(t.time_to)).padStart(2,'0')+':'+String(Math.round((t.time_to%1)*60)).padStart(2,'0'):'any time')+'</span></div>';
+
+    // Row 5: Days
+    h+='<div class="mgr-row"><span class="mgr-label">Days</span>';
+    var trigDays=t.days||[];
+    ['weekday','weekend','holiday'].forEach(function(d){
+      var on=trigDays.includes(d);
+      h+='<button style="border:1px solid '+(on?'var(--accent)':'var(--card2)')+';background:'+(on?'rgba(99,102,241,.1)':'var(--bg)')+';color:'+(on?'var(--accent)':'var(--text3)')+';border-radius:6px;padding:2px 8px;font-size:9px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;margin-right:4px" onclick="var d=gpsTriggers['+i+'].days||[];var idx=d.indexOf(\''+d+'\');if(idx>=0)d.splice(idx,1);else d.push(\''+d+'\');gpsTriggers['+i+'].days=d;saveGpsLoc(gpsTriggers['+i+']);renderPage()">'+d+'</button>';
+    });
+    h+='</div>';
+
+    // Row 6: Cooldown
+    h+='<div class="mgr-row"><span class="mgr-label">Cooldown</span><select class="mgr-sel" onchange="gpsTriggers['+i+'].cooldown_min=parseInt(this.value);saveGpsLoc(gpsTriggers['+i+'])">';
+    [{v:15,l:'15 min'},{v:30,l:'30 min'},{v:60,l:'1 hour'},{v:120,l:'2 hours'},{v:240,l:'4 hours'},{v:480,l:'8 hours'},{v:1440,l:'24 hours'}].forEach(function(o){h+='<option value="'+o.v+'" '+((t.cooldown_min||60)===o.v?'selected':'')+'>'+o.l+'</option>'});
+    h+='</select></div>';
+
+    // Actions row
+    h+='<div style="display:flex;gap:4px;margin-top:6px">';
+    if(gpsLat)h+='<button class="mgr-btn mgr-btn-primary" style="font-size:9px" onclick="gpsTriggers['+i+'].lat='+gpsLat+';gpsTriggers['+i+'].lng='+gpsLng+';saveGpsLoc(gpsTriggers['+i+']);renderPage()">📍 Pin to GPS</button>';
+    h+='<button class="mgr-btn" style="font-size:9px" onclick="gpsTriggers['+i+'].enabled=!gpsTriggers['+i+'].enabled;saveGpsLoc(gpsTriggers['+i+']);renderPage()">'+(t.enabled?'Disable':'Enable')+'</button>';
+    h+='<button class="mgr-btn mgr-btn-danger" style="font-size:9px" onclick="if(confirm(\'Delete trigger: '+esc(t.name)+'?\')){deleteGpsLoc(gpsTriggers['+i+'].id).then(function(){return reloadGpsLocs()}).then(renderPage)}">Delete</button>';
+    h+='</div></div>';
+  });
+
+  h+='<button class="mgr-btn mgr-btn-ghost" style="width:100%;margin-top:6px" onclick="saveGpsLoc({name:\'New Trigger\',lat:'+(gpsLat||35.7)+',lng:'+(gpsLng||139.9)+',radius:300,type:\'trigger\',action:\'takeover\',squad:\'Quick Study\',start_on:\'immediate\',time_from:null,time_to:null,days:[\'weekday\'],cooldown_min:60,enabled:true,sort_order:'+(10+gpsTriggers.length)+'}).then(function(){return reloadGpsLocs()}).then(renderPage)">+ Add trigger</button>';
   h+='</div>';
 
   return h;
