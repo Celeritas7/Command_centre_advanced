@@ -1187,51 +1187,6 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 <script>
 const sb=window.supabase.createClient('https://wylxvmkcrexwfpjpbhyy.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak');
 
-// ===== OVERLAY QUEUE (OQ) =====
-// Central controller for all full-screen overlays.
-// Only one overlay visible at a time (highest priority).
-// When dismissed, next-highest auto-shows.
-// Priority tiers: sleep_gate=100, possession=90, takeover=85,
-//   ofc_blocker=80, break=70, bg_timer=60, smart_expense=50, regen=30
-const OQ=(()=>{
-  const q=[];       // [{type, pri, show, hide}]
-  let active=null;  // type string of currently visible overlay
-
-  function _top(){return q.length?q.reduce((a,b)=>b.pri>a.pri?b:a):null}
-
-  function _apply(){
-    const top=_top();
-    const topT=top?top.type:null;
-    if(topT===active)return; // no change
-    // Hide current (if it's still in the queue — might have been pre-empted)
-    if(active){const cur=q.find(x=>x.type===active);if(cur)cur.hide()}
-    // Show new top
-    if(top){top.show();active=topT}else{active=null}
-  }
-
-  return{
-    push(type,pri,showFn,hideFn){
-      const idx=q.findIndex(x=>x.type===type);
-      if(idx>=0){q[idx].pri=pri;q[idx].show=showFn;q[idx].hide=hideFn}
-      else{q.push({type,pri,show:showFn,hide:hideFn})}
-      _apply();
-    },
-    dismiss(type){
-      const idx=q.findIndex(x=>x.type===type);
-      if(idx<0)return;
-      if(type===active){q[idx].hide();active=null}
-      q.splice(idx,1);
-      _apply();
-    },
-    has(type){return q.some(x=>x.type===type)},
-    current(){return active},
-    active(){return active!==null},
-    types(){return q.map(x=>x.type+':'+x.pri).join(', ')},
-    size(){return q.length}
-  };
-})();
-
-
 let allTags=[],tagMap={},allTasks=[],taskTags={},pitchSet=new Set(),playerMap={};
 let posRanks={}; // { categoryName: [taskId1, taskId2, ...] } — ordered rank queue
 let rankingMode=false, rankingCat=''; // ranking assignment mode
@@ -1630,8 +1585,8 @@ function smartPrefillTime(){
   if(Math.abs(hr-costPatterns.dinnerHour)<=1&&costPatterns.conbiniShops.length)return{...smartPrefillShop(costPatterns.conbiniShops[0]),reason:'Dinner time — log if you bought food'};
   return{amount:'',shop:'',category:'',notes:'',reason:''};
 }
-function openSmartExpense(pf){smartExpPrefill=pf||{amount:'',shop:'',category:'',notes:'',reason:''};smartExpVisible=true;renderSmartExpense();OQ.push('smart_expense',50,()=>document.getElementById('smartExpOv').classList.add('show'),()=>document.getElementById('smartExpOv').classList.remove('show'))}
-function closeSmartExpense(){smartExpVisible=false;OQ.dismiss('smart_expense')}
+function openSmartExpense(pf){smartExpPrefill=pf||{amount:'',shop:'',category:'',notes:'',reason:''};smartExpVisible=true;renderSmartExpense();document.getElementById('smartExpOv').classList.add('show')}
+function closeSmartExpense(){smartExpVisible=false;document.getElementById('smartExpOv').classList.remove('show')}
 function renderSmartExpense(){
   if(!costPatterns)analyzeCostPatterns();
   const pf=smartExpPrefill,p=costPatterns,el=document.getElementById('smartExpBody');
@@ -1665,7 +1620,7 @@ async function seSubmit(){
 }
 // Triggers
 function costTimeCheck(){
-  if(!costLoaded||!costExpenses.length||OQ.active()||emergencyMode)return;
+  if(!costLoaded||!costExpenses.length||smartExpVisible||tkvActive||emergencyMode)return;
   const today=todayK();
   const hr=new Date().getHours(),min=new Date().getMinutes();
   costTriggerCfg.timeTriggers.filter(t=>t.enabled).forEach(trig=>{
@@ -1683,16 +1638,16 @@ function costTimeCheck(){
   });
 }
 function costGpsCheck(){
-  if(!gpsLat||!costLoaded||OQ.active()||emergencyMode)return;
+  if(!gpsLat||!costLoaded||smartExpVisible||tkvActive||emergencyMode)return;
   if(Date.now()-costLastGpsShopPrompt<costTriggerCfg.gpsCooldownMin*60*1000)return;
   const shops=costTriggerCfg.gpsShops.filter(s=>s.enabled);
   for(const s of shops){if(gpsDistM(gpsLat,gpsLng,s.lat,s.lng)<=s.radius){costLastGpsShopPrompt=Date.now();const pf=smartPrefillShop(s.name.replace(/ \(.*\)/,''));pf.reason=`📍 Near ${s.name}`;openSmartExpense(pf);return}}
 }
 function costOfficeDepartCheck(){
-  if(!gpsLat||!costLoaded||OQ.has('smart_expense')||!costTriggerCfg.officeDeparture.enabled)return;
+  if(!gpsLat||!costLoaded||smartExpVisible||!costTriggerCfg.officeDeparture.enabled)return;
   const near=gpsDistM(gpsLat,gpsLng,GPS_COORDS.office.lat,GPS_COORDS.office.lng)<=GPS_RADIUS;
   if(near){costWasAtOffice=true}
-  else if(costWasAtOffice){costWasAtOffice=false;const k=todayK()+'_dep';if(costLastTimePrompt===k)return;costLastTimePrompt=k;setTimeout(()=>{if(!OQ.active()){const pf=smartPrefillTime();pf.reason='🏢 Left office — log transport or conbini?';openSmartExpense(pf)}},costTriggerCfg.officeDeparture.delayMin*60*1000)}
+  else if(costWasAtOffice){costWasAtOffice=false;const k=todayK()+'_dep';if(costLastTimePrompt===k)return;costLastTimePrompt=k;setTimeout(()=>{if(!smartExpVisible&&!tkvActive){const pf=smartPrefillTime();pf.reason='🏢 Left office — log transport or conbini?';openSmartExpense(pf)}},costTriggerCfg.officeDeparture.delayMin*60*1000)}
 }
 setInterval(costTimeCheck,60000);
 function buildPersonalityContext(sqN){
@@ -2142,12 +2097,8 @@ async function tkvTrigger(sqN){
   },1000);
 
   tkvRender();
-  // Show via OQ — captures sqN in closure for correct team styling
-  const tkvSqClass=sqN.toLowerCase().replace(/\s/g,'');
-  OQ.push('takeover',85,
-    ()=>{const el=document.getElementById('tkvOv');el.className='tkv-ov show '+tkvSqClass;el.classList.add('show')},
-    ()=>document.getElementById('tkvOv').classList.remove('show')
-  );
+  document.getElementById('tkvOv').classList.add('show');
+  document.getElementById('tkvOv').className='tkv-ov show '+sqN.toLowerCase().replace(/\s/g,'');
 }
 
 function tkvRender(){
@@ -2233,7 +2184,7 @@ function tkvClose(){
   tkvActive=null;
   clearInterval(tkvTimerInt);
   tkvChecked=new Set();
-  OQ.dismiss('takeover');
+  document.getElementById('tkvOv').classList.remove('show');
   renderPitch();
 }
 
@@ -2639,7 +2590,6 @@ var cmteTestTime=null;
 var cmteVisFrom=300,cmteVisTo=1380; // visibility window minutes (5:00-23:00)
 
 // ===== GPS AUTO-LOCATION =====
-// Fallback coords (overwritten by Supabase command_centre_gps_locations on init)
 var GPS_COORDS={
   home:{lat:35.7089,lng:139.9454},
   office:{lat:35.5791,lng:139.7485},
@@ -2650,28 +2600,6 @@ var GPS_RADIUS=500;
 var GPS_SPEEDS={run:130,fast:100,normal:80};
 var gpsLat=null,gpsLng=null,gpsAccuracy=null,gpsTime=null;
 var gpsAutoLoc=true;
-var gpsZones=[];    // [{id,name,lat,lng,radius,loc_state}] — from Supabase
-var gpsTriggers=[]; // [{id,name,lat,lng,radius,action,squad,start_on,time_from,time_to,days,cooldown_min}]
-var gpsLocsLoaded=false;
-
-async function loadGpsLocations(){
-  try{
-    const{data,error}=await sb.from('command_centre_gps_locations').select('*').eq('enabled',true).order('sort_order');
-    if(error){console.error('GPS locations load:',error);return}
-    if(!data||!data.length){console.log('GPS: no locations in DB, using fallback');return}
-    gpsZones=data.filter(r=>r.type==='zone');
-    gpsTriggers=data.filter(r=>r.type==='trigger');
-    // Populate GPS_COORDS from loaded data (backward compat for commute, etc.)
-    data.forEach(r=>{
-      const key=r.name.toLowerCase().replace(/\s+/g,'');
-      GPS_COORDS[key]={lat:r.lat,lng:r.lng};
-      // Also map loc_state as key for zones (e.g. 'home', 'office')
-      if(r.loc_state)GPS_COORDS[r.loc_state]={lat:r.lat,lng:r.lng};
-    });
-    gpsLocsLoaded=true;
-    console.log('GPS: loaded '+gpsZones.length+' zones, '+gpsTriggers.length+' triggers');
-  }catch(e){console.error('GPS locations load:',e)}
-}
 
 function gpsDistM(lat1,lng1,lat2,lng2){
   var R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
@@ -2682,24 +2610,11 @@ function gpsWalkMin(distM,speed){return Math.ceil(distM/speed)}
 function gpsDetectLoc(){
   if(!gpsLat)return null;
   if(manualLocOverride)return null; // manual override active, don't auto-switch
-  // Dynamic zone detection (smallest radius wins)
-  if(gpsZones.length){
-    const sorted=[...gpsZones].sort((a,b)=>a.radius-b.radius);
-    for(const z of sorted){
-      const d=gpsDistM(gpsLat,gpsLng,z.lat,z.lng);
-      if(d<=z.radius){
-        // Office zone requires check-in to activate
-        if(z.loc_state==='office')return ofcCheckedIn?'office':'outside';
-        return z.loc_state||'outside';
-      }
-    }
-    return'outside';
-  }
-  // Fallback to hardcoded coords
   var dH=gpsDistM(gpsLat,gpsLng,GPS_COORDS.home.lat,GPS_COORDS.home.lng);
   var dO=gpsDistM(gpsLat,gpsLng,GPS_COORDS.office.lat,GPS_COORDS.office.lng);
   if(dH<=GPS_RADIUS)return'home';
   if(dO<=GPS_RADIUS){
+    // Office mode = GPS near office + Jobcan checked in
     return ofcCheckedIn?'office':'outside';
   }
   return'outside';
@@ -2723,132 +2638,11 @@ function gpsCheck(){
     gpsAccuracy=Math.round(pos.coords.accuracy);gpsTime=Date.now();
     if(gpsAutoLoc){var det=gpsDetectLoc();if(det&&det!==loc)setLoc(det)}
     else renderPitch();
-    // Trigger engine — fires independently of zone detection
-    gpsCheckTriggers();
     // Cost triggers on GPS update
     costGpsCheck();costOfficeDepartCheck();
   },function(err){console.log('GPS:',err.message)},{enableHighAccuracy:false,timeout:10000,maximumAge:60000});
 }
-document.addEventListener('visibilitychange',function(){if(!document.hidden){gpsCheck();gpsCheckPendingTriggers()}});
-
-// ===== GPS TRIGGER ENGINE =====
-// Fires events when entering trigger radii (independent of zone detection).
-// Each trigger has its own cooldown. Actions dispatched via gpsTriggerFire().
-var gpsTriggerCooldowns={}; // {triggerId: lastFireTimestamp}
-var gpsTriggerPending=[];   // [{id,name,action,squad,start_on,firedAt}] — for app_open mode (Step 4)
-
-function gpsTriggerLoadCooldowns(){
-  try{gpsTriggerCooldowns=JSON.parse(localStorage.getItem('cc_gps_trigger_cd')||'{}')}catch(e){gpsTriggerCooldowns={}}
-}
-function gpsTriggerSaveCooldowns(){
-  try{localStorage.setItem('cc_gps_trigger_cd',JSON.stringify(gpsTriggerCooldowns))}catch(e){}
-}
-function gpsTriggerLoadPending(){
-  try{gpsTriggerPending=JSON.parse(localStorage.getItem('cc_gps_trigger_pending')||'[]')}catch(e){gpsTriggerPending=[]}
-}
-function gpsTriggerSavePending(){
-  try{localStorage.setItem('cc_gps_trigger_pending',JSON.stringify(gpsTriggerPending))}catch(e){}
-}
-
-function gpsCheckTriggers(){
-  if(!gpsLat||!gpsTriggers.length||emergencyMode)return;
-  const hr=new Date().getHours()+(new Date().getMinutes()/60);
-  const dt=dayType();
-  const now=Date.now();
-
-  for(const trig of gpsTriggers){
-    // 1. Distance check — inside radius?
-    const dist=gpsDistM(gpsLat,gpsLng,trig.lat,trig.lng);
-    if(dist>trig.radius)continue;
-
-    // 2. Time window check
-    if(trig.time_from!=null&&trig.time_to!=null){
-      if(hr<trig.time_from||hr>=trig.time_to)continue;
-    }
-
-    // 3. Day check
-    if(trig.days&&trig.days.length){
-      const match=trig.days.includes(dt)||(dt==='holiday'&&trig.days.includes('weekend'));
-      if(!match)continue;
-    }
-
-    // 4. Cooldown check
-    const lastFire=gpsTriggerCooldowns[trig.id]||0;
-    const cooldownMs=(trig.cooldown_min||60)*60*1000;
-    if(now-lastFire<cooldownMs)continue;
-
-    // 5. All checks passed — fire!
-    console.log('GPS trigger fire:',trig.name,trig.action,trig.squad);
-    gpsTriggerCooldowns[trig.id]=now;
-    gpsTriggerSaveCooldowns();
-    gpsTriggerFire(trig);
-  }
-}
-
-function gpsTriggerFire(trig){
-  const mode=trig.start_on||'immediate';
-
-  if(mode==='app_open'){
-    // Save to pending — will show on next app open/focus (Step 4 wires UI)
-    const existing=gpsTriggerPending.find(p=>p.id===trig.id);
-    if(!existing){
-      gpsTriggerPending.push({id:trig.id,name:trig.name,action:trig.action,squad:trig.squad,start_on:mode,firedAt:Date.now()});
-      gpsTriggerSavePending();
-      console.log('GPS trigger pending (app_open):',trig.name);
-    }
-    return;
-  }
-
-  if(mode==='manual'){
-    // Show takeover but timer waits for tap (Step 4 wires UI)
-    // For now, treat as immediate
-  }
-
-  // === immediate (or manual fallback) ===
-  if(trig.action==='takeover'&&trig.squad){
-    if(tkvActive)return; // already in a takeover
-    if(OQ.has('takeover'))return;
-    // Ensure squad exists in takeoverConfig
-    if(!takeoverConfig[trig.squad]){
-      // Create a minimal config for GPS-triggered squad
-      takeoverConfig[trig.squad]={enabled:true,hardLock:false,timeFrom:0,timeTo:24,
-        days:['weekday','weekend'],loc:['home','office','outside'],
-        tasks:[{id:'gt1',text:'Complete pending study items',ico:'📖',done:false}],
-        timerMin:15};
-    }
-    tkvTrigger(trig.squad);
-  }else if(trig.action==='cost_popup'){
-    if(!OQ.active()){
-      const pf=smartPrefillTime();
-      pf.reason='📍 '+trig.name+' — log expense?';
-      openSmartExpense(pf);
-    }
-  }else if(trig.action==='notification'){
-    if('Notification' in window&&Notification.permission==='granted'){
-      try{new Notification('📍 '+trig.name,{body:'You are near '+trig.name,tag:'cc-gps-'+trig.id})}catch(e){}
-    }
-  }
-}
-
-// Check for pending app_open triggers on visibility change
-function gpsCheckPendingTriggers(){
-  if(!gpsTriggerPending.length)return;
-  const now=Date.now();
-  const graceMs=2*60*1000; // 2-min grace period before firing
-  const ready=gpsTriggerPending.filter(p=>now-p.firedAt>=graceMs);
-  if(!ready.length)return;
-  // Fire the first ready pending trigger
-  const p=ready[0];
-  gpsTriggerPending=gpsTriggerPending.filter(x=>x.id!==p.id);
-  gpsTriggerSavePending();
-  console.log('GPS trigger pending fire:',p.name,p.action);
-  // Reconstruct a trigger-like object for gpsTriggerFire
-  gpsTriggerFire({...p,start_on:'immediate'}); // force immediate since grace period is done
-}
-
-// Init cooldowns and pending from localStorage
-gpsTriggerLoadCooldowns();
-gpsTriggerLoadPending();
+document.addEventListener('visibilitychange',function(){if(!document.hidden)gpsCheck()});
 
 function cmteWalkTimes(isShimosa){
   if(!gpsLat){var fb=isShimosa?CMTE_WALK_AM:CMTE_WALK_PM;return{run:fb,fast:fb,normal:fb,dist:null,gps:false}}
@@ -3506,20 +3300,9 @@ function ofcShouldEvening(){
 }
 function ofcUpdateBlockers(){
   const mE=document.getElementById('ofcMorning'),eE=document.getElementById('ofcEvening');
-  if(ofcShouldMorning()){
-    OQ.push('ofc_blocker',80,
-      ()=>{mE.classList.add('show');eE.classList.remove('show');ofcRenderBlLinks()},
-      ()=>{mE.classList.remove('show')}
-    );
-  }else if(ofcShouldEvening()){
-    OQ.push('ofc_blocker',80,
-      ()=>{eE.classList.add('show');mE.classList.remove('show');ofcRenderBlLinks();ofcResetEvUI()},
-      ()=>{eE.classList.remove('show')}
-    );
-  }else{
-    OQ.dismiss('ofc_blocker');
-    mE.classList.remove('show');eE.classList.remove('show');
-  }
+  if(ofcShouldMorning()){mE.classList.add('show');eE.classList.remove('show');ofcRenderBlLinks()}
+  else if(ofcShouldEvening()){mE.classList.remove('show');eE.classList.add('show');ofcRenderBlLinks();ofcResetEvUI()}
+  else{mE.classList.remove('show');eE.classList.remove('show')}
 }
 function ofcDoCheckin(){ofcCheckedIn=true;saveOfcState();ofcUpdateBlockers();renderPitch()}
 
@@ -3795,10 +3578,7 @@ function showRegenPopup(t){
   var info=document.getElementById('regenDayInfo');
   if(regenSelectedDays.length){info.style.display='';info.textContent='Every '+regenSelectedDays.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')+' — task regenerates to appear on those days'}
   else{info.style.display='none'}
-  OQ.push('regen',30,
-    ()=>el.classList.add('show'),
-    ()=>el.classList.remove('show')
-  );
+  el.classList.add('show');
 }
 async function confirmRegen(){
   const id=pendingDoneId;if(!id)return;const t=allTasks.find(x=>x.id===id);if(!t)return;
@@ -3849,7 +3629,7 @@ function toggleRegenDay(d){
     info.style.display='';info.textContent='Every '+regenSelectedDays.sort().map(function(x){return names[x]}).join(', ')+' — task reappears on those days';
   }else{info.style.display='none'}
 }
-function closeRegenPopup(){OQ.dismiss('regen');pendingDoneId=null}
+function closeRegenPopup(){document.getElementById('regenPopup').classList.remove('show');pendingDoneId=null}
 
 // ===== DELETE TASK =====
 let pendingDeleteId=null;
@@ -4170,8 +3950,8 @@ const L_T=[{id:'le',t:'Eat a proper lunch',i:'🍱'},{id:'lw',t:'Drink water',i:
 const D_T=[{id:'dg',t:'Grooming / skincare',i:'🪞'},{id:'dl',t:'Laundry',i:'👔'},{id:'dc',t:'Clean room',i:'🧹'},{id:'ds',t:"Prep tomorrow's clothes",i:'👕'},{id:'dd',t:'Wind down',i:'😴'}];
 function checkPoss(){if(!isOff()||loc!=='home'){hideAllLocks();clearNudge();return}applyPoss()}
 function applyPoss(){hideAllLocks();clearNudge();if(possession==='mid_morning')showLock('lockM','lockMT','lockMB','lockMS',M_T,morningCk);else if(possession==='attacker'||possession==='attacker2')startNudge();else if(possession==='mid_lunch')showLunchLock();else if(possession==='defender')showDefLock()}
-function hideAllLocks(){['lockM','lockL','lockD'].forEach(id=>document.getElementById(id).classList.remove('show'));OQ.dismiss('possession')}
-function showLock(ov,tid,bid,sid,list,set){set.clear();document.getElementById(tid).innerHTML=list.map(t=>`<div class="lock-task" id="lk_${t.id}" onclick="tglLock('${t.id}','${ov}')"><div class="lt-cb" id="lcb_${t.id}"></div><span class="lt-text">${t.t}</span><span class="lt-icon">${t.i}</span></div>`).join('');updLockBtn(bid,sid,set,ov==='lockM');OQ.push('possession',90,()=>document.getElementById(ov).classList.add('show'),()=>document.getElementById(ov).classList.remove('show'))}
+function hideAllLocks(){['lockM','lockL','lockD'].forEach(id=>document.getElementById(id).classList.remove('show'))}
+function showLock(ov,tid,bid,sid,list,set){set.clear();document.getElementById(tid).innerHTML=list.map(t=>`<div class="lock-task" id="lk_${t.id}" onclick="tglLock('${t.id}','${ov}')"><div class="lt-cb" id="lcb_${t.id}"></div><span class="lt-text">${t.t}</span><span class="lt-icon">${t.i}</span></div>`).join('');updLockBtn(bid,sid,set,ov==='lockM');document.getElementById(ov).classList.add('show')}
 function tglLock(id,ov){const set=ov==='lockM'?morningCk:ov==='lockL'?lunchCk:defCk;set.has(id)?set.delete(id):set.add(id);const list=ov==='lockM'?M_T:ov==='lockL'?L_T:D_T;list.forEach(t=>{document.getElementById('lk_'+t.id)?.classList.toggle('checked',set.has(t.id));document.getElementById('lcb_'+t.id)?.classList.toggle('checked',set.has(t.id))});const td=ov==='lockM'?true:ov==='lockL'?lunchRem<=0:defRem<=0;updLockBtn(ov==='lockM'?'lockMB':ov==='lockL'?'lockLB':'lockDB',ov==='lockM'?'lockMS':ov==='lockL'?'lockLS':'lockDS',set,td)}
 function updLockBtn(b,s,set,td){const r=set.size>=1&&td;document.getElementById(b).className='lock-btn '+(r?'ready':'waiting');document.getElementById(s).textContent=r?'Ready! ⚽':set.size<1?'Check at least one':'✅ Checked — wait'}
 function unlockM(){if(morningCk.size<1)return;possession='attacker';savePoss();hideAllLocks();startNudge();renderPitch()}
@@ -4194,8 +3974,8 @@ function resumeStudy(){if(!currentStudyId||studyTimerRem<=0)return;studyTimerAct
 async function completeStudy(){studyTimerActive=false;clearInterval(studyTimerInt);const id=currentStudyId;studyTimerRem=0;currentStudyId=null;const t=allTasks.find(x=>x.id===id);if(t){pendingDoneId=id;showRegenPopup(t);renderPitch()}}
 function stopTimer(){studyTimerActive=false;clearInterval(studyTimerInt);currentStudyId=null;studyTimerRem=0}
 const TIPS=[{i:'💧',t:'Drink water'},{i:'🍙',t:'Snack'},{i:'🧘',t:'Stretch'},{i:'👀',t:'Rest eyes'},{i:'🚶',t:'Walk'},{i:'🫁',t:'Deep breaths'},{i:'🎵',t:'Song'}];
-function triggerBreak(){breakRem=300;OQ.push('break',70,()=>document.getElementById('breakOv').classList.add('show'),()=>document.getElementById('breakOv').classList.remove('show'));document.getElementById('breakIcon').textContent=['🌿','🌊','☀️','🍃'][Math.floor(Math.random()*4)];document.getElementById('breakTips').innerHTML=[...TIPS].sort(()=>Math.random()-.5).slice(0,3).map(t=>`<div class="break-tip"><span style="font-size:18px">${t.i}</span><span>${t.t}</span></div>`).join('');breakInt=setInterval(()=>{breakRem--;document.getElementById('bTime').textContent=`${Math.floor(breakRem/60)}:${String(breakRem%60).padStart(2,'0')}`;document.getElementById('bRing').style.strokeDashoffset=276.46*(1-breakRem/300);if(breakRem<=0)endBreak()},1000)}
-async function endBreak(){clearInterval(breakInt);OQ.dismiss('break');const t=allTasks.find(x=>x.id===currentStudyId);if(t){pendingDoneId=currentStudyId;currentStudyId=null;showRegenPopup(t)}else{currentStudyId=null;const next=pitched().filter(isStudy);if(next.length)startStudy(next[0].id);else renderPitch()}}
+function triggerBreak(){breakRem=300;document.getElementById('breakOv').classList.add('show');document.getElementById('breakIcon').textContent=['🌿','🌊','☀️','🍃'][Math.floor(Math.random()*4)];document.getElementById('breakTips').innerHTML=[...TIPS].sort(()=>Math.random()-.5).slice(0,3).map(t=>`<div class="break-tip"><span style="font-size:18px">${t.i}</span><span>${t.t}</span></div>`).join('');breakInt=setInterval(()=>{breakRem--;document.getElementById('bTime').textContent=`${Math.floor(breakRem/60)}:${String(breakRem%60).padStart(2,'0')}`;document.getElementById('bRing').style.strokeDashoffset=276.46*(1-breakRem/300);if(breakRem<=0)endBreak()},1000)}
+async function endBreak(){clearInterval(breakInt);document.getElementById('breakOv').classList.remove('show');const t=allTasks.find(x=>x.id===currentStudyId);if(t){pendingDoneId=currentStudyId;currentStudyId=null;showRegenPopup(t)}else{currentStudyId=null;const next=pitched().filter(isStudy);if(next.length)startStudy(next[0].id);else renderPitch()}}
 function skipBreak(){endBreak()}
 
 // ===== RENDER PITCH =====
@@ -5050,9 +4830,6 @@ function renderBrainStatus(){
   h+='<div>⚽ Possession: <strong>'+possession+'</strong></div>';
   h+='<div>🆘 Emergency: <strong>'+(emergencyMode?'ON':'OFF')+'</strong></div>';
   h+='<div>🎯 Takeover: <strong>'+(tkvActive||'None')+'</strong></div>';
-  h+='<div>📊 OQ Active: <strong>'+(OQ.current()||'None')+'</strong> ('+OQ.size()+' queued: '+OQ.types()+')</div>';
-  h+='<div>🛰️ GPS Locs: <strong>'+(gpsLocsLoaded?gpsZones.length+'z/'+gpsTriggers.length+'t':'fallback')+'</strong></div>';
-  h+='<div>🎯 Pending: <strong>'+gpsTriggerPending.length+'</strong> CD: <strong>'+Object.keys(gpsTriggerCooldowns).length+'</strong></div>';
   h+='<div>😊 Mood: <strong>'+mood+'</strong></div>';
   h+='</div></div>';
 
@@ -5270,13 +5047,13 @@ function bgTimerTick(){
 
 function bgTimerAlert(t){
   var el=document.getElementById('bgTimerAlert');
+  el.style.display='';
   el.innerHTML='<div class="bg-timer-alert"><div class="bg-timer-alert-card">'+
     '<div class="bg-timer-alert-ico">'+t.ico+'</div>'+
     '<div class="bg-timer-alert-title">'+esc(t.label)+' done!</div>'+
     '<div class="bg-timer-alert-msg">'+esc(t.taskName)+'<br>Timer: '+formatBgTime(t.totalSec)+' completed</div>'+
     '<button class="bg-timer-alert-btn" onclick="bgTimerDismissAlert(\''+t.id+'\')">Got it ✓</button>'+
   '</div></div>';
-  OQ.push('bg_timer',60,()=>{el.style.display=''},()=>{el.style.display='none'});
   // System notification (works when tab is backgrounded or phone locked)
   if('Notification' in window&&Notification.permission==='granted'){
     try{
@@ -5295,7 +5072,7 @@ function bgTimerAlert(t){
 }
 
 function bgTimerDismissAlert(id){
-  OQ.dismiss('bg_timer');
+  document.getElementById('bgTimerAlert').style.display='none';
   document.getElementById('bgTimerAlert').innerHTML='';
   bgTimers.forEach(function(t){if(t.id===id&&t._bgTimeout)clearTimeout(t._bgTimeout)});
   bgTimers=bgTimers.filter(function(t){return t.id!==id});
@@ -5375,6 +5152,7 @@ function isSleepTime(){
 function sleepGateCheck(){
   var gate=document.getElementById('sleepGate');
   if(isSleepTime()){
+    gate.classList.add('show');
     // Update clock on the gate
     var now=new Date();
     document.getElementById('sleepGateTime').textContent=
@@ -5382,22 +5160,20 @@ function sleepGateCheck(){
     // Calculate unlock time
     var unlockH=SLEEP_TO;
     if(now.getHours()>=SLEEP_FROM){
+      // After 10 PM — unlock is tomorrow at 4 AM
       var tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);tomorrow.setHours(SLEEP_TO,0,0,0);
       var diff=tomorrow-now;
       var hLeft=Math.floor(diff/3600000);var mLeft=Math.floor((diff%3600000)/60000);
       document.getElementById('sleepGateUnlock').textContent='Unlocks in '+hLeft+'h '+mLeft+'m (04:00 AM)';
     }else{
+      // Before 4 AM
       var unlock=new Date(now);unlock.setHours(SLEEP_TO,0,0,0);
       var diff=unlock-now;
       var hLeft=Math.floor(diff/3600000);var mLeft=Math.floor((diff%3600000)/60000);
       document.getElementById('sleepGateUnlock').textContent='Unlocks in '+hLeft+'h '+mLeft+'m (04:00 AM)';
     }
-    OQ.push('sleep_gate',100,
-      ()=>gate.classList.add('show'),
-      ()=>gate.classList.remove('show')
-    );
   }else{
-    OQ.dismiss('sleep_gate');
+    gate.classList.remove('show');
   }
 }
 
@@ -5415,10 +5191,7 @@ async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(up
   loadHolidays().then(()=>{updateBadge();renderPitch()});
   loadPersonalDaysOff();
   loadWeatherData();
-  document.getElementById('loadingView').style.display='none';document.getElementById('pitch').style.display='';document.getElementById('cornerBtn').style.display='';document.getElementById('mgrBtn').style.display='';document.getElementById('appLaunchBtn').style.display='';document.getElementById('emgBtn').style.display='';checkPoss();ofcUpdateBlockers();ssInitListeners();
-  // Load GPS locations from Supabase before first GPS check
-  await loadGpsLocations();
-  gpsCheck();gpsCheckPendingTriggers();renderPitch();setTimeout(tkvCheck,3000);
+  document.getElementById('loadingView').style.display='none';document.getElementById('pitch').style.display='';document.getElementById('cornerBtn').style.display='';document.getElementById('mgrBtn').style.display='';document.getElementById('appLaunchBtn').style.display='';document.getElementById('emgBtn').style.display='';checkPoss();ofcUpdateBlockers();ssInitListeners();gpsCheck();renderPitch();setTimeout(tkvCheck,3000);
   // CC Brain — nervous system init
   if(typeof CC_BRAIN!=='undefined') CC_BRAIN.init({mode:'native',sb});
   // Restore background timers from localStorage

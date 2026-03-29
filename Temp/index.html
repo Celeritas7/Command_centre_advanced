@@ -1187,6 +1187,51 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 <script>
 const sb=window.supabase.createClient('https://wylxvmkcrexwfpjpbhyy.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak');
 
+// ===== OVERLAY QUEUE (OQ) =====
+// Central controller for all full-screen overlays.
+// Only one overlay visible at a time (highest priority).
+// When dismissed, next-highest auto-shows.
+// Priority tiers: sleep_gate=100, possession=90, takeover=85,
+//   ofc_blocker=80, break=70, bg_timer=60, smart_expense=50, regen=30
+const OQ=(()=>{
+  const q=[];       // [{type, pri, show, hide}]
+  let active=null;  // type string of currently visible overlay
+
+  function _top(){return q.length?q.reduce((a,b)=>b.pri>a.pri?b:a):null}
+
+  function _apply(){
+    const top=_top();
+    const topT=top?top.type:null;
+    if(topT===active)return; // no change
+    // Hide current (if it's still in the queue — might have been pre-empted)
+    if(active){const cur=q.find(x=>x.type===active);if(cur)cur.hide()}
+    // Show new top
+    if(top){top.show();active=topT}else{active=null}
+  }
+
+  return{
+    push(type,pri,showFn,hideFn){
+      const idx=q.findIndex(x=>x.type===type);
+      if(idx>=0){q[idx].pri=pri;q[idx].show=showFn;q[idx].hide=hideFn}
+      else{q.push({type,pri,show:showFn,hide:hideFn})}
+      _apply();
+    },
+    dismiss(type){
+      const idx=q.findIndex(x=>x.type===type);
+      if(idx<0)return;
+      if(type===active){q[idx].hide();active=null}
+      q.splice(idx,1);
+      _apply();
+    },
+    has(type){return q.some(x=>x.type===type)},
+    current(){return active},
+    active(){return active!==null},
+    types(){return q.map(x=>x.type+':'+x.pri).join(', ')},
+    size(){return q.length}
+  };
+})();
+
+
 let allTags=[],tagMap={},allTasks=[],taskTags={},pitchSet=new Set(),playerMap={};
 let posRanks={}; // { categoryName: [taskId1, taskId2, ...] } — ordered rank queue
 let rankingMode=false, rankingCat=''; // ranking assignment mode
@@ -1585,8 +1630,8 @@ function smartPrefillTime(){
   if(Math.abs(hr-costPatterns.dinnerHour)<=1&&costPatterns.conbiniShops.length)return{...smartPrefillShop(costPatterns.conbiniShops[0]),reason:'Dinner time — log if you bought food'};
   return{amount:'',shop:'',category:'',notes:'',reason:''};
 }
-function openSmartExpense(pf){smartExpPrefill=pf||{amount:'',shop:'',category:'',notes:'',reason:''};smartExpVisible=true;renderSmartExpense();document.getElementById('smartExpOv').classList.add('show')}
-function closeSmartExpense(){smartExpVisible=false;document.getElementById('smartExpOv').classList.remove('show')}
+function openSmartExpense(pf){smartExpPrefill=pf||{amount:'',shop:'',category:'',notes:'',reason:''};smartExpVisible=true;renderSmartExpense();OQ.push('smart_expense',50,()=>document.getElementById('smartExpOv').classList.add('show'),()=>document.getElementById('smartExpOv').classList.remove('show'))}
+function closeSmartExpense(){smartExpVisible=false;OQ.dismiss('smart_expense')}
 function renderSmartExpense(){
   if(!costPatterns)analyzeCostPatterns();
   const pf=smartExpPrefill,p=costPatterns,el=document.getElementById('smartExpBody');
@@ -1620,7 +1665,7 @@ async function seSubmit(){
 }
 // Triggers
 function costTimeCheck(){
-  if(!costLoaded||!costExpenses.length||smartExpVisible||tkvActive||emergencyMode)return;
+  if(!costLoaded||!costExpenses.length||OQ.active()||emergencyMode)return;
   const today=todayK();
   const hr=new Date().getHours(),min=new Date().getMinutes();
   costTriggerCfg.timeTriggers.filter(t=>t.enabled).forEach(trig=>{
@@ -1638,16 +1683,16 @@ function costTimeCheck(){
   });
 }
 function costGpsCheck(){
-  if(!gpsLat||!costLoaded||smartExpVisible||tkvActive||emergencyMode)return;
+  if(!gpsLat||!costLoaded||OQ.active()||emergencyMode)return;
   if(Date.now()-costLastGpsShopPrompt<costTriggerCfg.gpsCooldownMin*60*1000)return;
   const shops=costTriggerCfg.gpsShops.filter(s=>s.enabled);
   for(const s of shops){if(gpsDistM(gpsLat,gpsLng,s.lat,s.lng)<=s.radius){costLastGpsShopPrompt=Date.now();const pf=smartPrefillShop(s.name.replace(/ \(.*\)/,''));pf.reason=`📍 Near ${s.name}`;openSmartExpense(pf);return}}
 }
 function costOfficeDepartCheck(){
-  if(!gpsLat||!costLoaded||smartExpVisible||!costTriggerCfg.officeDeparture.enabled)return;
+  if(!gpsLat||!costLoaded||OQ.has('smart_expense')||!costTriggerCfg.officeDeparture.enabled)return;
   const near=gpsDistM(gpsLat,gpsLng,GPS_COORDS.office.lat,GPS_COORDS.office.lng)<=GPS_RADIUS;
   if(near){costWasAtOffice=true}
-  else if(costWasAtOffice){costWasAtOffice=false;const k=todayK()+'_dep';if(costLastTimePrompt===k)return;costLastTimePrompt=k;setTimeout(()=>{if(!smartExpVisible&&!tkvActive){const pf=smartPrefillTime();pf.reason='🏢 Left office — log transport or conbini?';openSmartExpense(pf)}},costTriggerCfg.officeDeparture.delayMin*60*1000)}
+  else if(costWasAtOffice){costWasAtOffice=false;const k=todayK()+'_dep';if(costLastTimePrompt===k)return;costLastTimePrompt=k;setTimeout(()=>{if(!OQ.active()){const pf=smartPrefillTime();pf.reason='🏢 Left office — log transport or conbini?';openSmartExpense(pf)}},costTriggerCfg.officeDeparture.delayMin*60*1000)}
 }
 setInterval(costTimeCheck,60000);
 function buildPersonalityContext(sqN){
@@ -2097,8 +2142,12 @@ async function tkvTrigger(sqN){
   },1000);
 
   tkvRender();
-  document.getElementById('tkvOv').classList.add('show');
-  document.getElementById('tkvOv').className='tkv-ov show '+sqN.toLowerCase().replace(/\s/g,'');
+  // Show via OQ — captures sqN in closure for correct team styling
+  const tkvSqClass=sqN.toLowerCase().replace(/\s/g,'');
+  OQ.push('takeover',85,
+    ()=>{const el=document.getElementById('tkvOv');el.className='tkv-ov show '+tkvSqClass;el.classList.add('show')},
+    ()=>document.getElementById('tkvOv').classList.remove('show')
+  );
 }
 
 function tkvRender(){
@@ -2184,7 +2233,7 @@ function tkvClose(){
   tkvActive=null;
   clearInterval(tkvTimerInt);
   tkvChecked=new Set();
-  document.getElementById('tkvOv').classList.remove('show');
+  OQ.dismiss('takeover');
   renderPitch();
 }
 
@@ -3300,9 +3349,20 @@ function ofcShouldEvening(){
 }
 function ofcUpdateBlockers(){
   const mE=document.getElementById('ofcMorning'),eE=document.getElementById('ofcEvening');
-  if(ofcShouldMorning()){mE.classList.add('show');eE.classList.remove('show');ofcRenderBlLinks()}
-  else if(ofcShouldEvening()){mE.classList.remove('show');eE.classList.add('show');ofcRenderBlLinks();ofcResetEvUI()}
-  else{mE.classList.remove('show');eE.classList.remove('show')}
+  if(ofcShouldMorning()){
+    OQ.push('ofc_blocker',80,
+      ()=>{mE.classList.add('show');eE.classList.remove('show');ofcRenderBlLinks()},
+      ()=>{mE.classList.remove('show')}
+    );
+  }else if(ofcShouldEvening()){
+    OQ.push('ofc_blocker',80,
+      ()=>{eE.classList.add('show');mE.classList.remove('show');ofcRenderBlLinks();ofcResetEvUI()},
+      ()=>{eE.classList.remove('show')}
+    );
+  }else{
+    OQ.dismiss('ofc_blocker');
+    mE.classList.remove('show');eE.classList.remove('show');
+  }
 }
 function ofcDoCheckin(){ofcCheckedIn=true;saveOfcState();ofcUpdateBlockers();renderPitch()}
 
@@ -3578,7 +3638,10 @@ function showRegenPopup(t){
   var info=document.getElementById('regenDayInfo');
   if(regenSelectedDays.length){info.style.display='';info.textContent='Every '+regenSelectedDays.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')+' — task regenerates to appear on those days'}
   else{info.style.display='none'}
-  el.classList.add('show');
+  OQ.push('regen',30,
+    ()=>el.classList.add('show'),
+    ()=>el.classList.remove('show')
+  );
 }
 async function confirmRegen(){
   const id=pendingDoneId;if(!id)return;const t=allTasks.find(x=>x.id===id);if(!t)return;
@@ -3629,7 +3692,7 @@ function toggleRegenDay(d){
     info.style.display='';info.textContent='Every '+regenSelectedDays.sort().map(function(x){return names[x]}).join(', ')+' — task reappears on those days';
   }else{info.style.display='none'}
 }
-function closeRegenPopup(){document.getElementById('regenPopup').classList.remove('show');pendingDoneId=null}
+function closeRegenPopup(){OQ.dismiss('regen');pendingDoneId=null}
 
 // ===== DELETE TASK =====
 let pendingDeleteId=null;
@@ -3950,8 +4013,8 @@ const L_T=[{id:'le',t:'Eat a proper lunch',i:'🍱'},{id:'lw',t:'Drink water',i:
 const D_T=[{id:'dg',t:'Grooming / skincare',i:'🪞'},{id:'dl',t:'Laundry',i:'👔'},{id:'dc',t:'Clean room',i:'🧹'},{id:'ds',t:"Prep tomorrow's clothes",i:'👕'},{id:'dd',t:'Wind down',i:'😴'}];
 function checkPoss(){if(!isOff()||loc!=='home'){hideAllLocks();clearNudge();return}applyPoss()}
 function applyPoss(){hideAllLocks();clearNudge();if(possession==='mid_morning')showLock('lockM','lockMT','lockMB','lockMS',M_T,morningCk);else if(possession==='attacker'||possession==='attacker2')startNudge();else if(possession==='mid_lunch')showLunchLock();else if(possession==='defender')showDefLock()}
-function hideAllLocks(){['lockM','lockL','lockD'].forEach(id=>document.getElementById(id).classList.remove('show'))}
-function showLock(ov,tid,bid,sid,list,set){set.clear();document.getElementById(tid).innerHTML=list.map(t=>`<div class="lock-task" id="lk_${t.id}" onclick="tglLock('${t.id}','${ov}')"><div class="lt-cb" id="lcb_${t.id}"></div><span class="lt-text">${t.t}</span><span class="lt-icon">${t.i}</span></div>`).join('');updLockBtn(bid,sid,set,ov==='lockM');document.getElementById(ov).classList.add('show')}
+function hideAllLocks(){['lockM','lockL','lockD'].forEach(id=>document.getElementById(id).classList.remove('show'));OQ.dismiss('possession')}
+function showLock(ov,tid,bid,sid,list,set){set.clear();document.getElementById(tid).innerHTML=list.map(t=>`<div class="lock-task" id="lk_${t.id}" onclick="tglLock('${t.id}','${ov}')"><div class="lt-cb" id="lcb_${t.id}"></div><span class="lt-text">${t.t}</span><span class="lt-icon">${t.i}</span></div>`).join('');updLockBtn(bid,sid,set,ov==='lockM');OQ.push('possession',90,()=>document.getElementById(ov).classList.add('show'),()=>document.getElementById(ov).classList.remove('show'))}
 function tglLock(id,ov){const set=ov==='lockM'?morningCk:ov==='lockL'?lunchCk:defCk;set.has(id)?set.delete(id):set.add(id);const list=ov==='lockM'?M_T:ov==='lockL'?L_T:D_T;list.forEach(t=>{document.getElementById('lk_'+t.id)?.classList.toggle('checked',set.has(t.id));document.getElementById('lcb_'+t.id)?.classList.toggle('checked',set.has(t.id))});const td=ov==='lockM'?true:ov==='lockL'?lunchRem<=0:defRem<=0;updLockBtn(ov==='lockM'?'lockMB':ov==='lockL'?'lockLB':'lockDB',ov==='lockM'?'lockMS':ov==='lockL'?'lockLS':'lockDS',set,td)}
 function updLockBtn(b,s,set,td){const r=set.size>=1&&td;document.getElementById(b).className='lock-btn '+(r?'ready':'waiting');document.getElementById(s).textContent=r?'Ready! ⚽':set.size<1?'Check at least one':'✅ Checked — wait'}
 function unlockM(){if(morningCk.size<1)return;possession='attacker';savePoss();hideAllLocks();startNudge();renderPitch()}
@@ -3974,8 +4037,8 @@ function resumeStudy(){if(!currentStudyId||studyTimerRem<=0)return;studyTimerAct
 async function completeStudy(){studyTimerActive=false;clearInterval(studyTimerInt);const id=currentStudyId;studyTimerRem=0;currentStudyId=null;const t=allTasks.find(x=>x.id===id);if(t){pendingDoneId=id;showRegenPopup(t);renderPitch()}}
 function stopTimer(){studyTimerActive=false;clearInterval(studyTimerInt);currentStudyId=null;studyTimerRem=0}
 const TIPS=[{i:'💧',t:'Drink water'},{i:'🍙',t:'Snack'},{i:'🧘',t:'Stretch'},{i:'👀',t:'Rest eyes'},{i:'🚶',t:'Walk'},{i:'🫁',t:'Deep breaths'},{i:'🎵',t:'Song'}];
-function triggerBreak(){breakRem=300;document.getElementById('breakOv').classList.add('show');document.getElementById('breakIcon').textContent=['🌿','🌊','☀️','🍃'][Math.floor(Math.random()*4)];document.getElementById('breakTips').innerHTML=[...TIPS].sort(()=>Math.random()-.5).slice(0,3).map(t=>`<div class="break-tip"><span style="font-size:18px">${t.i}</span><span>${t.t}</span></div>`).join('');breakInt=setInterval(()=>{breakRem--;document.getElementById('bTime').textContent=`${Math.floor(breakRem/60)}:${String(breakRem%60).padStart(2,'0')}`;document.getElementById('bRing').style.strokeDashoffset=276.46*(1-breakRem/300);if(breakRem<=0)endBreak()},1000)}
-async function endBreak(){clearInterval(breakInt);document.getElementById('breakOv').classList.remove('show');const t=allTasks.find(x=>x.id===currentStudyId);if(t){pendingDoneId=currentStudyId;currentStudyId=null;showRegenPopup(t)}else{currentStudyId=null;const next=pitched().filter(isStudy);if(next.length)startStudy(next[0].id);else renderPitch()}}
+function triggerBreak(){breakRem=300;OQ.push('break',70,()=>document.getElementById('breakOv').classList.add('show'),()=>document.getElementById('breakOv').classList.remove('show'));document.getElementById('breakIcon').textContent=['🌿','🌊','☀️','🍃'][Math.floor(Math.random()*4)];document.getElementById('breakTips').innerHTML=[...TIPS].sort(()=>Math.random()-.5).slice(0,3).map(t=>`<div class="break-tip"><span style="font-size:18px">${t.i}</span><span>${t.t}</span></div>`).join('');breakInt=setInterval(()=>{breakRem--;document.getElementById('bTime').textContent=`${Math.floor(breakRem/60)}:${String(breakRem%60).padStart(2,'0')}`;document.getElementById('bRing').style.strokeDashoffset=276.46*(1-breakRem/300);if(breakRem<=0)endBreak()},1000)}
+async function endBreak(){clearInterval(breakInt);OQ.dismiss('break');const t=allTasks.find(x=>x.id===currentStudyId);if(t){pendingDoneId=currentStudyId;currentStudyId=null;showRegenPopup(t)}else{currentStudyId=null;const next=pitched().filter(isStudy);if(next.length)startStudy(next[0].id);else renderPitch()}}
 function skipBreak(){endBreak()}
 
 // ===== RENDER PITCH =====
@@ -4830,6 +4893,7 @@ function renderBrainStatus(){
   h+='<div>⚽ Possession: <strong>'+possession+'</strong></div>';
   h+='<div>🆘 Emergency: <strong>'+(emergencyMode?'ON':'OFF')+'</strong></div>';
   h+='<div>🎯 Takeover: <strong>'+(tkvActive||'None')+'</strong></div>';
+  h+='<div>📊 OQ Active: <strong>'+(OQ.current()||'None')+'</strong> ('+OQ.size()+' queued: '+OQ.types()+')</div>';
   h+='<div>😊 Mood: <strong>'+mood+'</strong></div>';
   h+='</div></div>';
 
@@ -5047,13 +5111,13 @@ function bgTimerTick(){
 
 function bgTimerAlert(t){
   var el=document.getElementById('bgTimerAlert');
-  el.style.display='';
   el.innerHTML='<div class="bg-timer-alert"><div class="bg-timer-alert-card">'+
     '<div class="bg-timer-alert-ico">'+t.ico+'</div>'+
     '<div class="bg-timer-alert-title">'+esc(t.label)+' done!</div>'+
     '<div class="bg-timer-alert-msg">'+esc(t.taskName)+'<br>Timer: '+formatBgTime(t.totalSec)+' completed</div>'+
     '<button class="bg-timer-alert-btn" onclick="bgTimerDismissAlert(\''+t.id+'\')">Got it ✓</button>'+
   '</div></div>';
+  OQ.push('bg_timer',60,()=>{el.style.display=''},()=>{el.style.display='none'});
   // System notification (works when tab is backgrounded or phone locked)
   if('Notification' in window&&Notification.permission==='granted'){
     try{
@@ -5072,7 +5136,7 @@ function bgTimerAlert(t){
 }
 
 function bgTimerDismissAlert(id){
-  document.getElementById('bgTimerAlert').style.display='none';
+  OQ.dismiss('bg_timer');
   document.getElementById('bgTimerAlert').innerHTML='';
   bgTimers.forEach(function(t){if(t.id===id&&t._bgTimeout)clearTimeout(t._bgTimeout)});
   bgTimers=bgTimers.filter(function(t){return t.id!==id});
@@ -5152,7 +5216,6 @@ function isSleepTime(){
 function sleepGateCheck(){
   var gate=document.getElementById('sleepGate');
   if(isSleepTime()){
-    gate.classList.add('show');
     // Update clock on the gate
     var now=new Date();
     document.getElementById('sleepGateTime').textContent=
@@ -5160,20 +5223,22 @@ function sleepGateCheck(){
     // Calculate unlock time
     var unlockH=SLEEP_TO;
     if(now.getHours()>=SLEEP_FROM){
-      // After 10 PM — unlock is tomorrow at 4 AM
       var tomorrow=new Date(now);tomorrow.setDate(tomorrow.getDate()+1);tomorrow.setHours(SLEEP_TO,0,0,0);
       var diff=tomorrow-now;
       var hLeft=Math.floor(diff/3600000);var mLeft=Math.floor((diff%3600000)/60000);
       document.getElementById('sleepGateUnlock').textContent='Unlocks in '+hLeft+'h '+mLeft+'m (04:00 AM)';
     }else{
-      // Before 4 AM
       var unlock=new Date(now);unlock.setHours(SLEEP_TO,0,0,0);
       var diff=unlock-now;
       var hLeft=Math.floor(diff/3600000);var mLeft=Math.floor((diff%3600000)/60000);
       document.getElementById('sleepGateUnlock').textContent='Unlocks in '+hLeft+'h '+mLeft+'m (04:00 AM)';
     }
+    OQ.push('sleep_gate',100,
+      ()=>gate.classList.add('show'),
+      ()=>gate.classList.remove('show')
+    );
   }else{
-    gate.classList.remove('show');
+    OQ.dismiss('sleep_gate');
   }
 }
 
