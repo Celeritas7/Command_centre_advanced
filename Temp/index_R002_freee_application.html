@@ -392,11 +392,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ofc-freee-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .ofc-freee-title{font-size:13px;font-weight:700}.ofc-freee-badge{font-size:8px;font-weight:700;padding:2px 7px;border-radius:5px;background:rgba(217,119,6,.15);color:#D97706}
 .ofc-freee-desc{font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px}
-.ofc-freee-gen{background:white;border:1.5px dashed #E5EAFF;border-radius:10px;padding:14px 16px;text-align:left;color:var(--text2);font-size:11px;margin-bottom:10px}
+.ofc-freee-gen{background:white;border:1.5px dashed #E5EAFF;border-radius:10px;padding:20px;text-align:center;color:var(--text2);font-size:11px;margin-bottom:10px}
 .ofc-freee-actions{display:flex;gap:6px}
 .ofc-freee-btn{border:none;padding:8px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer}
 .ofc-freee-btn.pri{background:#D97706;color:white}.ofc-freee-btn.sec{background:rgba(217,119,6,.1);color:#D97706}
-.ofc-blocker .ofc-freee{max-width:360px;width:100%}
 
 /* Apps dock */
 .ofc-dock{margin-bottom:14px}
@@ -3681,21 +3680,7 @@ function ofcRenderBlLinks(){
   const mEl=document.getElementById('ofcBlMorningLinks');
   const eEl=document.getElementById('ofcBlEveningLinks');
   if(mEl){let h='';ofcBlLinks.filter(l=>l.screen==='morning').forEach(l=>{const hasUrl=l.url&&l.url.trim();h+='<div class="ofc-bl-card"><div class="ofc-bl-card-ico">'+l.ico+'</div><div class="ofc-bl-card-info"><div class="ofc-bl-card-name">'+esc(l.name)+'</div><div class="ofc-bl-card-desc">'+esc(l.desc)+'</div></div>'+(hasUrl?'<button class="ofc-bl-btn go" onclick="window.open(\''+esc(l.url)+'\',\'_blank\')">Open &#8599;</button>':'<span style="font-size:9px;color:rgba(255,255,255,.4)">No URL</span>')+'</div>'});mEl.innerHTML=h}
-  if(eEl){let h='';ofcBlLinks.filter(l=>l.screen==='evening').filter(l=>l.id!=='bl_freee'||isFreeeDay()).forEach(l=>{
-    if(l.id==='bl_freee'){
-      // Rich Freee transport generator card
-      h+='<div class="ofc-freee" style="margin:8px 0">';
-      h+='<div class="ofc-freee-hdr"><span style="font-size:18px">💴</span><div class="ofc-freee-title">Transport Reimbursement</div><span class="ofc-freee-badge">'+(new Date().getMonth()+1)+'月</span></div>';
-      h+='<div class="ofc-freee-gen" id="freeeGenBoxBl">'+freeeGenHTML()+'</div>';
-      h+='<div class="ofc-freee-actions">';
-      h+='<button class="ofc-freee-btn pri" data-lbl="📋 Copy" onclick="freeeCopy(event)">📋 Copy</button>';
-      h+='<button class="ofc-freee-btn sec" onclick="window.open(\''+esc(ofcLinks.freee)+'\',\'_blank\')">Open Freee ↗</button>';
-      h+='<button class="ofc-freee-btn sec" onclick="ofcFreeeDone=true;saveOfcState();renderPitch()">✓ Done</button>';
-      h+='</div></div>';
-    }else{
-      const hasUrl=l.url&&l.url.trim();h+='<div class="ofc-bl-card"><div class="ofc-bl-card-ico">'+l.ico+'</div><div class="ofc-bl-card-info"><div class="ofc-bl-card-name">'+esc(l.name)+'</div><div class="ofc-bl-card-desc">'+esc(l.desc)+'</div></div>'+(hasUrl?'<button class="ofc-bl-btn go" onclick="window.open(\''+esc(l.url)+'\',\'_blank\')">Open &#8599;</button>':'<span style="font-size:9px;color:rgba(255,255,255,.4)">No URL</span>')+'</div>';
-    }
-  });eEl.innerHTML=h}
+  if(eEl){let h='';ofcBlLinks.filter(l=>l.screen==='evening').filter(l=>l.id!=='bl_freee'||isFreeeDay()).forEach(l=>{const hasUrl=l.url&&l.url.trim();h+='<div class="ofc-bl-card"><div class="ofc-bl-card-ico">'+l.ico+'</div><div class="ofc-bl-card-info"><div class="ofc-bl-card-name">'+esc(l.name)+'</div><div class="ofc-bl-card-desc">'+esc(l.desc)+'</div></div>'+(hasUrl?'<button class="ofc-bl-btn go" onclick="window.open(\''+esc(l.url)+'\',\'_blank\')">Open &#8599;</button>':'<span style="font-size:9px;color:rgba(255,255,255,.4)">No URL</span>')+'</div>'});eEl.innerHTML=h}
 }
 
 // Edit blocker links overlay
@@ -3745,72 +3730,7 @@ function ofcIsFreeeDay(){
   const td=n.toDateString();
   return td===dlwd.toDateString()||td===lwd.toDateString();
 }
-function ofcWorkDays(){
-  const n=new Date(),y=n.getFullYear(),m=n.getMonth(),last=new Date(y,m+1,0).getDate();
-  let c=0;
-  for(let d=1;d<=last;d++){
-    const dt=new Date(y,m,d);
-    if(dt.getDay()===0||dt.getDay()===6)continue; // skip weekends
-    const ds=dt.toISOString().split('T')[0]; // YYYY-MM-DD
-    if(holidayMap[ds]||personalDaysOff[ds])continue; // skip holidays & personal days off
-    c++;
-  }
-  return c;
-}
-
-// ===== FREEE TRANSPORT GENERATOR =====
-const FREEE_ROUTE='下総中山 → 流通センター';
-const FREEE_ONE_WAY=830;
-const FREEE_ROUND_TRIP=FREEE_ONE_WAY*2; // ¥1,660
-
-function freeeGenText(){
-  const wd=ofcWorkDays();
-  const total=FREEE_ROUND_TRIP*wd;
-  return `${FREEE_ROUTE}（往復）\n合計: ¥${FREEE_ROUND_TRIP.toLocaleString()} × ${wd}日 = ¥${total.toLocaleString()}`;
-}
-
-function freeeGenHTML(){
-  const wd=ofcWorkDays();
-  const total=FREEE_ROUND_TRIP*wd;
-  const n=new Date();
-  const monthLabel=(n.getMonth()+1)+'月';
-  // Breakdown of deductions
-  const y=n.getFullYear(),m=n.getMonth(),last=new Date(y,m+1,0).getDate();
-  let totalWkd=0,holDays=[],pdoDays=[];
-  for(let d=1;d<=last;d++){
-    const dt=new Date(y,m,d);
-    if(dt.getDay()===0||dt.getDay()===6)continue;
-    const ds=dt.toISOString().split('T')[0];
-    if(holidayMap[ds]){holDays.push(ds.slice(5));totalWkd++}
-    else if(personalDaysOff[ds]){pdoDays.push(ds.slice(5));totalWkd++}
-    else totalWkd++;
-  }
-  let breakdown=`${monthLabel}: 平日${totalWkd}日`;
-  if(holDays.length)breakdown+=` − 祝日${holDays.length}日(${holDays.join(', ')})`;
-  if(pdoDays.length)breakdown+=` − 休み${pdoDays.length}日(${pdoDays.join(', ')})`;
-  breakdown+=` = <strong>${wd}日</strong>`;
-
-  return `<div style="font-family:'DM Sans',monospace;font-size:12px;line-height:1.8">
-    <div style="font-weight:700;margin-bottom:4px">🚃 ${esc(FREEE_ROUTE)}（往復）</div>
-    <div style="color:#92400E;font-size:10px;margin-bottom:8px">${breakdown}</div>
-    <div style="background:#FEF3C7;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;letter-spacing:.3px">
-      合計: ¥${FREEE_ROUND_TRIP.toLocaleString()} × ${wd}日 = <span style="color:#D97706;font-size:15px">¥${total.toLocaleString()}</span>
-    </div>
-  </div>`;
-}
-
-async function freeeCopy(ev){
-  const txt=freeeGenText();
-  const btn=ev&&ev.target;
-  try{await navigator.clipboard.writeText(txt);
-    if(btn){btn.textContent='✓ Copied!';btn.style.background='#059669';btn.style.color='#fff';setTimeout(()=>{btn.textContent=btn.dataset.lbl||'📋 Copy';btn.style.background='';btn.style.color=''},1500)}
-  }catch(e){
-    // Fallback
-    const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;left:-9999px';
-    document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-    if(btn){btn.textContent='✓ Copied!';setTimeout(()=>{btn.textContent=btn.dataset.lbl||'📋 Copy'},1500)}
-  }
-}
+function ofcWorkDays(){const n=new Date(),y=n.getFullYear(),m=n.getMonth(),last=new Date(y,m+1,0).getDate();let c=0;for(let d=1;d<=last;d++){const day=new Date(y,m,d).getDay();if(day>=1&&day<=5)c++}return c}
 
 // Office task helpers
 function ofcGetList(key){return key==='mgr'?ofcMgrTasks:key==='rem'?ofcReminders:ofcPplTasks}
@@ -3888,10 +3808,10 @@ function renderOfficeContent(){
 
   // Freee banner
   if(showFreee){const wd=ofcWorkDays();
-    h+=`<div class="ofc-freee"><div class="ofc-freee-hdr"><span style="font-size:20px">💴</span><div class="ofc-freee-title">Transport Reimbursement</div><span class="ofc-freee-badge">${(new Date().getMonth()+1)}月</span></div>`;
-    h+=`<div class="ofc-freee-desc">This month has <strong>${wd} working days</strong> (holidays & days off subtracted).</div>`;
-    h+=`<div class="ofc-freee-gen" id="freeeGenBox">${freeeGenHTML()}</div>`;
-    h+=`<div class="ofc-freee-actions"><button class="ofc-freee-btn pri" data-lbl="📋 Copy Text" onclick="freeeCopy(event)">📋 Copy Text</button><button class="ofc-freee-btn sec" onclick="window.open('${ofcLinks.freee}','_blank')">Open Freee ↗</button><button class="ofc-freee-btn sec" onclick="ofcFreeeDone=true;saveOfcState();renderPitch()">✓ Done</button></div></div>`;
+    h+=`<div class="ofc-freee"><div class="ofc-freee-hdr"><span style="font-size:20px">💴</span><div class="ofc-freee-title">Transport Reimbursement</div><span class="ofc-freee-badge">Due tomorrow</span></div>`;
+    h+=`<div class="ofc-freee-desc">This month has <strong>${wd} working days</strong>. Prepare your Freee application.</div>`;
+    h+=`<div class="ofc-freee-gen">📝 Application format generation<br><span style="font-size:9px;color:var(--text2)">(${wd} working days × ¥ rate — logic placeholder)</span></div>`;
+    h+=`<div class="ofc-freee-actions"><button class="ofc-freee-btn pri" onclick="window.open('${ofcLinks.freee}','_blank')">Open Freee ↗</button><button class="ofc-freee-btn sec" onclick="ofcFreeeDone=true;saveOfcState();renderPitch()">✓ Done</button></div></div>`;
   }
 
   // Apps dock
