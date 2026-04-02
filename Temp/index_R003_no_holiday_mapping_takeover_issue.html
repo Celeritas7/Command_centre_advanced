@@ -849,28 +849,13 @@ body.emergency-mode .fp-ball.def{background:linear-gradient(135deg,#BE185D,#9D17
 
 /* ===== TEAM TAKEOVER ===== */
 .tkv-ov{display:none;position:fixed;inset:0;z-index:9997;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
-.tkv-ov.show{display:flex;animation:lockIn .6s ease;background:linear-gradient(160deg,#1a1a2e,#2d2d44,#3a3a55)}
-body.tkv-active .corner-btn,body.tkv-active .emg-btn,body.tkv-active .applaunch-btn,body.tkv-active #mgrBtn,body.tkv-active .nudge,body.tkv-active #possStrip,body.tkv-active .gps-banner{display:none!important}
+.tkv-ov.show{display:flex;animation:lockIn .6s ease}
 .tkv-ov.executive{background:linear-gradient(160deg,#450a0a,#7f1d1d,#991b1b)}
 .tkv-ov.exercise{background:linear-gradient(160deg,#022c22,#064e3b,#065f46)}
 .tkv-ov.food{background:linear-gradient(160deg,#451a03,#78350f,#92400e)}
 .tkv-ov.sleep{background:linear-gradient(160deg,#0c0a2e,#1e1b4b,#312e81)}
 .tkv-ov.cleaning{background:linear-gradient(160deg,#042f2e,#134e4a,#0f766e)}
 .tkv-ov.fashion{background:linear-gradient(160deg,#4a044e,#701a75,#86198f)}
-.tkv-ov.quickstudy{background:linear-gradient(160deg,#7c2d12,#9a3412,#c2410c)}
-.tkv-ov.aistudy{background:linear-gradient(160deg,#1e1b4b,#3730a3,#4f46e5)}
-.tkv-ov.appgen{background:linear-gradient(160deg,#172554,#1e3a8a,#1d4ed8)}
-.tkv-ov.managertasks{background:linear-gradient(160deg,#450a0a,#991b1b,#b91c1c)}
-.tkv-ov.reminders{background:linear-gradient(160deg,#78350f,#92400e,#b45309)}
-.tkv-ov.peopletasks{background:linear-gradient(160deg,#4c1d95,#5b21b6,#6d28d9)}
-.tkv-ov.cost{background:linear-gradient(160deg,#365314,#3f6212,#4d7c0f)}
-.tkv-ov.weather{background:linear-gradient(160deg,#0c4a6e,#075985,#0369a1)}
-.tkv-ov.health{background:linear-gradient(160deg,#064e3b,#047857,#059669)}
-.tkv-ov.psychology{background:linear-gradient(160deg,#581c87,#6b21a8,#7c3aed)}
-.tkv-ov.eagleeye{background:linear-gradient(160deg,#1c1917,#44403c,#57534e)}
-.tkv-ov.ghosttracker{background:linear-gradient(160deg,#18181b,#27272a,#3f3f46)}
-.tkv-ov.partinventory{background:linear-gradient(160deg,#1a2e05,#3f6212,#4d7c0f)}
-.tkv-ov.shopping{background:linear-gradient(160deg,#713f12,#92400e,#b45309)}
 .tkv-ov::before{content:'';position:absolute;top:10%;right:-10%;width:300px;height:300px;background:radial-gradient(circle,rgba(255,255,255,.04),transparent 70%);border-radius:50%}
 .tkv-ico{font-size:48px;margin-bottom:10px;position:relative;z-index:1}
 .tkv-title{font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:white;margin-bottom:2px;position:relative;z-index:1}
@@ -2172,21 +2157,9 @@ async function tkvTrigger(sqN,opts){
   // Show via OQ — captures sqN in closure for correct team styling
   const tkvSqClass=sqN.toLowerCase().replace(/\s/g,'');
   OQ.push('takeover',85,
-    ()=>{const el=document.getElementById('tkvOv');el.className='tkv-ov show '+tkvSqClass;document.body.classList.add('tkv-active')},
-    ()=>{document.getElementById('tkvOv').classList.remove('show');document.body.classList.remove('tkv-active')}
+    ()=>{const el=document.getElementById('tkvOv');el.className='tkv-ov show '+tkvSqClass;el.classList.add('show')},
+    ()=>document.getElementById('tkvOv').classList.remove('show')
   );
-}
-
-// Lightweight markdown → HTML for AI briefings
-function parseMd(txt){
-  if(!txt)return'';
-  let h=esc(txt); // sanitize first
-  h=h.replace(/^## (.+)$/gm,'<div style="font-size:13px;font-weight:700;margin:8px 0 4px;color:rgba(255,255,255,.95)">$1</div>');
-  h=h.replace(/^# (.+)$/gm,'<div style="font-size:14px;font-weight:700;margin:8px 0 4px;color:white">$1</div>');
-  h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-  h=h.replace(/^[\u2013\u2014–—-]\s+(.+)$/gm,'<div style="padding-left:10px;margin:2px 0">• $1</div>');
-  h=h.replace(/\n/g,'<br>');
-  return h;
 }
 
 function tkvRender(){
@@ -2198,7 +2171,7 @@ function tkvRender(){
   document.getElementById('tkvIco').textContent=p.ico;
   document.getElementById('tkvTitle').textContent=p.name+' Team — Takeover';
   document.getElementById('tkvTone').textContent=tkvGpsSource||'"'+p.tone+'" mode active';
-  document.getElementById('tkvBriefText').innerHTML=parseMd(tkvBriefText)||'...';
+  document.getElementById('tkvBriefText').textContent=tkvBriefText||'...';
   document.getElementById('tkvBriefMeta').textContent=ccApiKey?'🤖 AI briefing':'📝 Rule-based';
   document.getElementById('tkvStreak').textContent=streak.streak>0?'🔥 Current streak: '+streak.streak+' days':'No streak yet — start one now';
 
@@ -2414,8 +2387,8 @@ function todayK(){const d=new Date();return`${d.getFullYear()}-${String(d.getMon
 function isWknd(){const d=new Date().getDay();return d===0||d===6}
 
 // ===== DYNAMIC HOLIDAYS (replaces hardcoded list) =====
-let holidayMap=(()=>{try{return JSON.parse(localStorage.getItem('cc_holidayMap'))||{}}catch(e){return{}}})();
-let personalDaysOff=(()=>{try{return JSON.parse(localStorage.getItem('cc_personalDaysOff'))||{}}catch(e){return{}}})();
+let holidayMap={}; // {'2026-03-20':'Vernal Equinox', '2026-04-29':'Shōwa Day', ...}
+let personalDaysOff={}; // {'2026-03-25':true} from calendar_app_entries marked days
 let weatherData={}; // {'2026-03-21': {icon:'☀️', tMax:20, tMin:8, code:0}}
 const WX_ICONS={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',66:'🌧️',67:'🌧️',71:'❄️',73:'❄️',75:'❄️',77:'❄️',80:'🌧️',81:'🌧️',82:'🌧️',85:'❄️',86:'❄️',95:'⛈️',96:'⛈️',99:'⛈️'};
 
@@ -2428,9 +2401,8 @@ async function loadHolidays(){
       const data=await res.json();
       data.forEach(h=>{holidayMap[h.date]=h.localName||h.name});
     }
-    localStorage.setItem('cc_holidayMap',JSON.stringify(holidayMap));
-    console.log('✅ Holidays loaded from API & cached:',Object.keys(holidayMap).length);
-  }catch(e){console.warn('Holiday API failed (using cache):',e.message)}
+    console.log('✅ Holidays loaded from API:',Object.keys(holidayMap).length);
+  }catch(e){console.warn('Holiday API failed:',e.message)}
 }
 
 async function loadPersonalDaysOff(){
@@ -2441,8 +2413,7 @@ async function loadPersonalDaysOff(){
     const endDate=new Date(today.getFullYear(),today.getMonth()+2,0).toISOString().split('T')[0];
     const{data}=await sb.from('calendar_app_entries').select('entry_date,is_marked,note').eq('user_id','default-user').eq('is_marked',true).gte('entry_date',startDate).lte('entry_date',endDate);
     (data||[]).forEach(r=>{personalDaysOff[r.entry_date]=r.note||'Day off'});
-    localStorage.setItem('cc_personalDaysOff',JSON.stringify(personalDaysOff));
-  }catch(e){console.warn('Personal days load (using cache):',e.message)}
+  }catch(e){console.warn('Personal days load:',e.message)}
 }
 
 async function loadWeatherData(){
