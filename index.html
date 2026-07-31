@@ -630,49 +630,46 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* ===== APP LAUNCHER OVERLAY ===== */
 .applaunch-ov{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px}
 .applaunch-ov.show{display:flex;animation:ofcFadeIn .2s ease}
-.applaunch-sheet{background:var(--card);border-radius:20px;width:100%;max-width:720px;max-height:85vh;overflow-y:auto;padding:20px 16px 24px;animation:alPopIn .3s ease;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.applaunch-sheet{background:var(--bg);border-radius:20px;width:100%;max-width:720px;max-height:85vh;overflow-y:auto;padding:16px 16px 20px;animation:alPopIn .3s ease;box-shadow:0 24px 64px rgba(0,0,0,.25)}
 @keyframes alPopIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 .applaunch-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .applaunch-title{font-family:'Fraunces',serif;font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
 .applaunch-close{border:none;background:var(--as);width:30px;height:30px;border-radius:10px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
-.al-filter{display:flex;gap:4px;margin-bottom:10px;padding:3px;background:var(--as);border-radius:9px}
-.al-filter-btn{flex:1;border:none;padding:6px;border-radius:7px;font-size:9px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;background:transparent;color:var(--text2);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:3px}
-.al-filter-btn.active{background:white;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.al-filter-dot{width:6px;height:6px;border-radius:50%}
-.al-summary{display:flex;gap:10px;margin-bottom:10px;padding:7px 10px;background:var(--as);border-radius:9px;align-items:center;font-size:10px;font-weight:600}
-.al-summary-dot{width:7px;height:7px;border-radius:50%}
-.al-grid{display:flex;gap:0;border:1.5px solid var(--as);border-radius:12px;overflow-x:auto;overflow-y:hidden;min-height:150px;-webkit-overflow-scrolling:touch}
-.al-grid.edit-mode{flex-direction:column;overflow-x:hidden;overflow-y:auto}
-.al-grid.edit-mode .al-col{border-right:none;border-bottom:1px solid var(--as);min-width:0;flex:none;width:100%}.al-grid.edit-mode .al-col:last-child{border-bottom:none}
-.al-grid.edit-mode .al-col-body{max-height:none;padding:10px}
-.al-col{flex:0 0 auto;min-width:160px;max-width:220px;border-right:1px solid var(--as)}.al-col:last-child{border-right:none}
-.al-col-hd{padding:10px 8px;background:linear-gradient(135deg,#FFF7ED,#FEF3C7);border-bottom:1.5px solid var(--as);text-align:center}
-.al-col-title{font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px}
-.al-col-count{font-size:8px;background:var(--accent);color:white;padding:1px 5px;border-radius:8px}
-.al-col-body{overflow-y:auto;max-height:420px}
-.al-sec-hd{padding:5px 8px;display:flex;align-items:center;gap:4px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.al-sec-hd.al-act{background:#ECFDF5;color:#059669;border-bottom:1px solid #D1FAE5;border-top:1px solid #D1FAE5}
-.al-sec-hd.al-inact{background:#F8FAFC;color:#94A3B8;border-bottom:1px solid #E2E8F0;border-top:1px solid #E2E8F0}
-.al-sec-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.al-sub-hd{padding:5px 8px;background:#F8F4F0;border-bottom:1px solid var(--as);border-top:1px solid var(--as)}
-.al-sub-title{font-size:9px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.3px}
-.al-app{padding:8px 8px;border-bottom:1px solid #f5f0ec;cursor:pointer;transition:all .15s;position:relative}
-.al-app:hover{background:var(--as)}.al-app:active{background:var(--accent);color:white}.al-app:last-child{border-bottom:none}
-.al-app-name{font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px;line-height:1.3}
-.al-app-url{font-size:8px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:18px}
-.al-app:active .al-app-url{color:rgba(255,255,255,.6)}
-.al-app-ico{font-size:14px;flex-shrink:0}.al-app-nourl{font-size:8px;color:#ccc;font-style:italic}
-.al-app.al-dimmed{opacity:.4}.al-app.al-dimmed:hover{opacity:.65}
-.al-app-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-left:auto}
-.al-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:24px;height:13px;border-radius:7px;border:none;cursor:pointer;transition:all .2s;padding:0}
-.al-toggle.on{background:#059669}.al-toggle.off{background:#CBD5E1}
-.al-toggle::after{content:'';position:absolute;top:2px;width:9px;height:9px;border-radius:50%;background:white;transition:all .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
-.al-toggle.on::after{left:13px}.al-toggle.off::after{left:2px}
-.al-empty{padding:10px 6px;text-align:center;font-size:8px;color:var(--text2);opacity:.5}
-.al-edit-btn{border:none;background:var(--as);padding:3px 10px;border-radius:6px;font-size:9px;color:var(--accent);font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
-.al-edit-btn.on{background:var(--accent);color:white}
-.al-edit-add{border:1.5px dashed var(--as);border-radius:8px;padding:6px;text-align:center;font-size:8px;color:var(--text2);cursor:pointer;margin-top:6px}
-.al-edit-add:hover{background:var(--as);color:var(--accent)}
+/* ===== MY APPS — launch-first grid ===== */
+.ma-hd{position:sticky;top:0;z-index:10;background:var(--bg);padding:2px 0 10px;display:flex;flex-direction:column;gap:10px;margin:-4px 0 4px}
+.ma-hd-row{display:flex;align-items:center;gap:8px}
+.ma-pill{font-size:10px;font-weight:700;color:var(--accent);background:var(--as);border-radius:8px;padding:2px 8px;white-space:nowrap}
+.ma-edit-btn{margin-left:auto;border:1.5px solid var(--as);background:var(--card);color:var(--text);border-radius:9px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.ma-edit-btn.on{border-color:var(--accent);background:var(--accent);color:#fff}
+.ma-search{flex:1;min-width:0;border:1.5px solid var(--as);border-radius:10px;padding:8px 11px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:var(--card);color:var(--text)}
+.ma-chip{border:1.5px solid var(--as);background:transparent;color:var(--text2);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.ma-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.ma-chip.on.act{background:#16A34A;border-color:#16A34A}
+.ma-groups{display:flex;flex-direction:column;gap:16px}
+.ma-g-hd{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px;padding-bottom:5px}
+.ma-g-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.ma-sub-chip{font-size:8px;font-weight:700;letter-spacing:.6px;border-radius:6px;padding:1px 6px;white-space:nowrap}
+.ma-g-count{font-size:9px;color:var(--text2)}
+.ma-add-app{margin-left:auto;background:transparent;border-radius:7px;padding:2px 9px;font-size:9px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.ma-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:12px 6px}
+.ma-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+.ma-ico{width:54px;height:54px;border-radius:16px;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative;background:var(--card)}
+.ma-ico.off{opacity:.45;filter:grayscale(.8);background:var(--as)}
+.ma-ico.nourl{cursor:default}
+.ma-dot{position:absolute;bottom:4px;right:4px;width:8px;height:8px;border-radius:50%;border:1.5px solid #fff}
+.ma-nm{border:none;background:transparent;padding:0;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.ma-nm.off{color:var(--text2)}
+.ma-nm.edit{text-decoration:underline dotted}
+.ma-nm.nourl{cursor:default}
+.ma-nm-inp{width:100%;border:1.5px solid var(--accent);border-radius:6px;padding:1px 4px;font-size:9px;font-weight:600;font-family:'DM Sans',sans-serif;outline:none;background:var(--card);color:var(--text);text-align:center}
+.ma-sub-tag{font-size:7px;font-weight:700;letter-spacing:.4px;color:var(--text2);opacity:.75;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ma-x{position:absolute;top:-6px;left:-4px;width:18px;height:18px;border-radius:50%;border:none;background:#57534E;color:#fff;font-size:11px;cursor:pointer;line-height:1;z-index:2;padding:0}
+.ma-pen{position:absolute;top:-6px;right:-4px;width:18px;height:18px;border-radius:50%;border:none;background:var(--as);color:var(--accent);font-size:9px;cursor:pointer;line-height:1;z-index:2;padding:0}
+.ma-empty{grid-column:1/-1;font-size:10px;color:var(--text2);opacity:.7;padding:6px 0}
+.ma-addrow{display:flex;gap:6px;align-items:center;margin-bottom:9px;flex-wrap:wrap}
+.ma-addrow input{border:1.5px solid var(--as);border-radius:8px;padding:6px 9px;font-size:11px;font-family:'DM Sans',sans-serif;outline:none;background:var(--card);color:var(--text);min-width:0}
+.ma-newgroup{border:1.5px dashed var(--as);background:transparent;color:var(--accent);border-radius:12px;padding:10px 0;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%}
+.ma-rule{text-align:center;font-size:9px;color:var(--text2);margin-top:10px}
 
 /* Critical surface */
 .ofc-crit{margin-bottom:14px}
@@ -3400,10 +3397,13 @@ function cmteRenderChain(t,nowMin,isAM){
   return h;
 }
 
-// ===== APP LAUNCHER (Table View) =====
+// ===== APP LAUNCHER (launch-first grid) =====
 let alEditMode=false;
 let alFilter='all';
 let alDelTarget=null;
+let alQuery='';        // live search, both modes; reset on close
+let alRenaming=null;   // 'ci_si_ai' of the tile being renamed inline
+let alAddingIn=null;   // category index showing the inline "+ App" row
 
 function alAllApps(){
   var list=[];
@@ -3414,93 +3414,140 @@ function alAllApps(){
   return list;
 }
 
-function alRenderAppNormal(a){
-  var hasUrl=a.url&&a.url.trim();
-  var dispUrl=hasUrl?(a.url.length>30?a.url.slice(0,30)+'...':a.url):'';
-  return '<div class="al-app" '+(hasUrl?'onclick="window.open(\''+esc(a.url)+'\',\'_blank\');closeAppLaunch()"':'')+'><div class="al-app-name"><span class="al-app-ico">'+a.ico+'</span>'+esc(a.name)+'</div>'+(hasUrl?'<div class="al-app-url">'+esc(dispUrl)+'</div>':'<div class="al-app-nourl">No URL</div>')+'</div>';
-}
+// Group palette — appDB has no color field, derive it from the display index
+var AL_COLORS=['#3B5BDB','#38A169','#E8722A','#7C3AED'];
+function alColor(i){return AL_COLORS[i%AL_COLORS.length]}
 
-function alRenderAppInactive(a){
-  return '<div class="al-app al-dimmed" style="pointer-events:none"><div class="al-app-name"><span class="al-app-ico">'+a.ico+'</span>'+esc(a.name)+'</div></div>';
+// Flatten a category into one list of tiles: its own apps plus every
+// subgroup's apps merged in (each tile remembers which subgroup it came from)
+function alGroupApps(cat,ci){
+  var out=[];
+  (cat.apps||[]).forEach(function(a,ai){out.push({a:a,ci:ci,si:-1,ai:ai,sub:''})});
+  (cat.subs||[]).forEach(function(sub,si){
+    (sub.apps||[]).forEach(function(a,ai){out.push({a:a,ci:ci,si:si,ai:ai,sub:sub.name||''})});
+  });
+  return out;
 }
-
-function alRenderAppEditRow(a, path){
+// Filter + live search, applied in BOTH modes
+function alShow(a){
   var inact=a.active===false;
-  var show=true;
-  if(alFilter==='active'&&inact)show=false;
-  if(alFilter==='inactive'&&!inact)show=false;
-  if(!show)return '';
-  return '<div class="al-app'+(inact?' al-dimmed':'')+'" style="display:flex;align-items:center;gap:4px"><span class="al-app-ico">'+a.ico+'</span><span class="al-app-name" style="flex:1;font-size:9px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(a.name)+'</span><button class="al-toggle '+(inact?'off':'on')+'" onclick="event.stopPropagation();'+path+'.active='+String(inact)+';openAppLaunch()" style="position:relative"></button><button style="border:none;background:none;font-size:8px;color:var(--accent);cursor:pointer;padding:2px 3px;opacity:.6;flex-shrink:0" onclick="event.stopPropagation();alOpenEditOv(\''+path.replace(/'/g,"\\'")+'\')">&#9999;&#65039;</button></div>';
+  if(alFilter==='active'&&inact)return false;
+  if(alFilter==='inactive'&&!inact)return false;
+  var q=(alQuery||'').trim().toLowerCase();
+  if(q&&String(a.name||'').toLowerCase().indexOf(q)<0)return false;
+  return true;
 }
+function alGetApp(ci,si,ai){
+  var c=appDB[ci];if(!c)return null;
+  if(si>=0){var sub=(c.subs||[])[si];return sub?(sub.apps||[])[ai]:null}
+  return (c.apps||[])[ai];
+}
+function alPath(ci,si,ai){
+  return si>=0?'appDB['+ci+'].subs['+si+'].apps['+ai+']':'appDB['+ci+'].apps['+ai+']';
+}
+function alLaunch(ci,si,ai){
+  var a=alGetApp(ci,si,ai);
+  if(a&&a.url&&String(a.url).trim())window.open(a.url,'_blank');
+}
+function alToggleApp(ci,si,ai){
+  var a=alGetApp(ci,si,ai);if(!a)return;
+  a.active=(a.active===false);
+  openAppLaunch();
+}
+// Inline rename — swap the name to an input, Enter or blur commits
+function alStartRename(ci,si,ai){
+  alRenaming=ci+'_'+si+'_'+ai;
+  openAppLaunch();
+  setTimeout(function(){var e=document.getElementById('alRenameInp');if(e){e.focus();e.select()}},50);
+}
+function alCommitRename(ci,si,ai,val){
+  if(alRenaming===null)return; // Enter already committed; ignore the trailing blur
+  var a=alGetApp(ci,si,ai);
+  if(a&&String(val).trim())a.name=String(val).trim();
+  alRenaming=null;
+  openAppLaunch();
+}
+// Inline "+ App" row on a group header
+function alShowAddRow(ci){
+  alAddingIn=ci;
+  openAppLaunch();
+  setTimeout(function(){var e=document.getElementById('alNewName');if(e)e.focus()},50);
+}
+function alCancelAddRow(){alAddingIn=null;openAppLaunch()}
+function alCommitAddRow(ci){
+  var n=document.getElementById('alNewName'),u=document.getElementById('alNewUrl');
+  if(!n)return;
+  var name=n.value.trim();if(!name){n.focus();return}
+  var cat=appDB[ci];if(!cat)return;
+  var app={id:'a_'+Date.now(),ico:'📱',name:name,url:u?u.value.trim():'',active:true};
+  // Grouped categories keep their apps inside subs — add to the first one
+  if(cat.subs&&cat.subs.length){if(!cat.subs[0].apps)cat.subs[0].apps=[];cat.subs[0].apps.push(app)}
+  else{if(!cat.apps)cat.apps=[];cat.apps.push(app)}
+  alAddingIn=null;
+  openAppLaunch();
+}
+function alSetFilter(f){alFilter=f;openAppLaunch()}
+function alSetQuery(v){alQuery=v;openAppLaunch()}
 
-// Normal mode column
-function alRenderColNormal(cat, ci){
-  var h='',allInCol=[];
-  if(cat.subs){
-    cat.subs.forEach(function(sub){
-      var act=(sub.apps||[]).filter(function(a){return a.active!==false});
-      if(act.length){
-        h+='<div class="al-sub-hd"><div class="al-sub-title">'+sub.ico+' '+esc(sub.name)+'</div></div>';
-        act.forEach(function(a){h+=alRenderAppNormal(a)});
-      }
-      (sub.apps||[]).forEach(function(a){allInCol.push(a)});
-    });
-  } else if(cat.apps){
-    cat.apps.filter(function(a){return a.active!==false}).forEach(function(a){h+=alRenderAppNormal(a)});
-    allInCol=cat.apps;
+// One full-width group section: header rule + merged tile grid
+function alRenderGroup(cat,ci,gi){
+  var color=alColor(gi);
+  var all=alGroupApps(cat,ci);
+  var vis=all.filter(function(x){return alShow(x.a)});
+  if(!alEditMode&&!vis.length&&(alQuery||'').trim())return ''; // search hides empty groups
+  var onCount=all.filter(function(x){return x.a.active!==false}).length;
+  var h='<div>';
+  h+='<div class="ma-g-hd" style="border-bottom:2px solid '+color+'33">';
+  h+='<span class="ma-g-name" style="color:'+color+'">'+esc(cat.name)+'</span>';
+  (cat.subs||[]).forEach(function(sub){
+    h+='<span class="ma-sub-chip" style="color:'+color+';border:1px solid '+color+'44">'+esc(String(sub.name||'').toUpperCase())+'</span>';
+  });
+  h+='<span class="ma-g-count">'+onCount+'/'+all.length+'</span>';
+  if(alEditMode)h+='<button class="ma-add-app" style="border:1px dashed '+color+'66;color:'+color+'" onclick="alShowAddRow('+ci+')">＋ App</button>';
+  h+='</div>';
+  if(alEditMode&&alAddingIn===ci){
+    h+='<div class="ma-addrow"><input id="alNewName" placeholder="App name" style="flex:1" onkeydown="if(event.key===&quot;Enter&quot;)alCommitAddRow('+ci+')"><input id="alNewUrl" placeholder="https://…" style="flex:1.4" onkeydown="if(event.key===&quot;Enter&quot;)alCommitAddRow('+ci+')">';
+    h+='<button class="ma-add-app" style="margin:0;border:none;background:'+color+';color:#fff" onclick="alCommitAddRow('+ci+')">Add</button>';
+    h+='<button class="ma-add-app" style="margin:0;border:1px solid var(--as);color:var(--text2)" onclick="alCancelAddRow()">Cancel</button></div>';
   }
-  var inact=allInCol.filter(function(a){return a.active===false});
-  if(inact.length){
-    h+='<div class="al-sec-hd al-inact"><div class="al-sec-dot" style="background:#CBD5E1"></div> Inactive ('+inact.length+')</div>';
-    inact.forEach(function(a){h+=alRenderAppInactive(a)});
-  }
+  h+='<div class="ma-grid">';
+  vis.forEach(function(x){h+=alRenderTile(x,color)});
+  if(!vis.length)h+='<div class="ma-empty">'+((alQuery||'').trim()?'No matches in this group.':'No apps here yet.')+'</div>';
+  h+='</div></div>';
   return h;
 }
 
-// Edit mode column
-function alRenderColEdit(cat, ci){
-  var h='';
-  // Category header — editable name + icon
-  h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;padding:4px 0">';
-  h+='<input style="width:28px;border:1px solid var(--as);border-radius:4px;padding:2px;font-size:14px;text-align:center;outline:none;background:white" value="'+esc(cat.ico)+'" onchange="appDB['+ci+'].ico=this.value;openAppLaunch()">';
-  h+='<input style="flex:1;border:1px solid var(--as);border-radius:4px;padding:4px 6px;font-size:11px;font-weight:700;font-family:DM Sans,sans-serif;outline:none;background:white;color:var(--text)" value="'+esc(cat.name)+'" onchange="appDB['+ci+'].name=this.value;openAppLaunch()">';
-  h+='<button style="border:none;background:none;font-size:10px;cursor:pointer;color:#DC2626;opacity:.5" onclick="alAskDel(\'alcat\','+ci+',null,null)" title="Delete category">🗑️</button>';
-  h+='</div>';
-
-  if(cat.subs){
-    cat.subs.forEach(function(sub,si){
-      var filtered=(sub.apps||[]).filter(function(a){
-        if(alFilter==='active')return a.active!==false;
-        if(alFilter==='inactive')return a.active===false;
-        return true;
-      });
-      // SHOW group even if empty (in edit mode) — so you can rename/add apps
-      h+='<div class="al-sub-hd" style="display:flex;align-items:center;gap:4px">';
-      h+='<input style="width:22px;border:1px solid var(--as);border-radius:3px;padding:1px;font-size:11px;text-align:center;outline:none;background:white" value="'+esc(sub.ico)+'" onchange="appDB['+ci+'].subs['+si+'].ico=this.value;openAppLaunch()">';
-      h+='<input style="flex:1;border:1px solid var(--as);border-radius:3px;padding:3px 5px;font-size:10px;font-weight:700;font-family:DM Sans,sans-serif;outline:none;background:white;color:var(--text);text-transform:uppercase;letter-spacing:.5px" value="'+esc(sub.name)+'" onchange="appDB['+ci+'].subs['+si+'].name=this.value;openAppLaunch()">';
-      h+='<span style="font-size:8px;color:var(--text2)">('+filtered.length+')</span>';
-      h+='<button style="border:none;background:none;font-size:9px;cursor:pointer;color:#DC2626;opacity:.4" onclick="alAskDel(\'alsub\','+ci+','+si+',null)" title="Delete group">✕</button>';
-      h+='</div>';
-      (sub.apps||[]).forEach(function(a,ai){
-        h+=alRenderAppEditRow(a,'appDB['+ci+'].subs['+si+'].apps['+ai+']');
-      });
-      h+='<div class="al-edit-add" onclick="alAddAppTo('+ci+','+si+')">+ App</div>';
-    });
-    h+='<div class="al-edit-add" onclick="alAddGroup('+ci+')">+ Group</div>';
-  } else if(cat.apps){
-    (cat.apps||[]).forEach(function(a,ai){
-      h+=alRenderAppEditRow(a,'appDB['+ci+'].apps['+ai+']');
-    });
-    h+='<div class="al-edit-add" onclick="alAddAppTo('+ci+',null)">+ App</div>';
-    // Allow converting flat category to grouped
-    h+='<div class="al-edit-add" onclick="alAddGroup('+ci+')">+ Group</div>';
+function alRenderTile(x,color){
+  var a=x.a,on=a.active!==false,hasUrl=!!(a.url&&String(a.url).trim());
+  var key=x.ci+'_'+x.si+'_'+x.ai;
+  var args=x.ci+','+x.si+','+x.ai;
+  var h='<div class="ma-tile">';
+  if(alEditMode){
+    h+='<button class="ma-x" onclick="alAskDel(&quot;alapp&quot;,'+x.ci+','+(x.si>=0?x.si:'null')+','+x.ai+')" title="Delete app">×</button>';
+    h+='<button class="ma-pen" onclick="alOpenEditOv(&quot;'+alPath(x.ci,x.si,x.ai)+'&quot;)" title="Icon, URL, status">&#9999;&#65039;</button>';
   }
+  var tap=alEditMode?'alToggleApp('+args+')':(hasUrl?'alLaunch('+args+')':'');
+  var title=alEditMode?(on?'Tap to deactivate':'Tap to activate'):(hasUrl?'Open '+a.name:a.name+' — no URL set');
+  h+='<button class="ma-ico'+(on?'':' off')+((!alEditMode&&!hasUrl)?' nourl':'')+'" style="border:1.5px solid '+(on?color+'33':'var(--as)')+(on?';box-shadow:0 2px 8px rgba(0,0,0,.07)':'')+'"'+(tap?' onclick="'+tap+'"':'')+' title="'+escA(title)+'">';
+  h+=a.ico+'<span class="ma-dot" style="background:'+(on?'#16A34A':'#A8A29E')+'"></span></button>';
+  if(alEditMode&&alRenaming===key){
+    h+='<input id="alRenameInp" class="ma-nm-inp" value="'+escA(a.name)+'" onblur="alCommitRename('+args+',this.value)" onkeydown="if(event.key===&quot;Enter&quot;)alCommitRename('+args+',this.value)">';
+  } else {
+    var nameTap=alEditMode?'alStartRename('+args+')':(hasUrl?'alLaunch('+args+')':'');
+    h+='<button class="ma-nm'+(on?'':' off')+(alEditMode?' edit':'')+(nameTap?'':' nourl')+'"'+(nameTap?' onclick="'+nameTap+'"':'')+'>'+esc(a.name)+'</button>';
+  }
+  if(x.sub)h+='<span class="ma-sub-tag">'+esc(x.sub)+'</span>';
+  h+='</div>';
   return h;
 }
 
 // Edit overlay for single app
 var alEditPath=null,alEditApp=null;
 var alSnapshot=null; // saved copy of appDB before edit mode
+// NOTE: alAddAppTo/alAddGroup are currently unreferenced — the redesigned grid adds
+// apps via the inline "+ App" row and groups via alAddCategory. Kept because they are
+// the only code path that can create a SUBgroup, which the new UI renders as chips
+// but does not yet create.
 function alAddAppTo(ci,si){
   if(ci<0||ci>=appDB.length)return;
   var newApp={id:'a_'+Date.now(),ico:'📱',name:'New App',url:'',active:true};
@@ -3633,50 +3680,39 @@ function openAppLaunch(){
   var sheet=document.getElementById('appLaunchSheet');
   var all=alAllApps();
   var actN=all.filter(function(a){return a.active!==false}).length;
-  var inactN=all.filter(function(a){return a.active===false}).length;
 
-  var h='<div class="applaunch-hd"><div class="applaunch-title">&#128218; My Apps</div><div style="display:flex;align-items:center;gap:6px"><button class="al-edit-btn'+(alEditMode?' on':'')+'" onclick="alToggleEditMode()">'+(alEditMode?'&#10003; Done':'&#9999;&#65039; Edit')+'</button><button class="applaunch-close" onclick="closeAppLaunch()">&#10005;</button></div></div>';
+  // --- Sticky header: title + active pill + Edit/Done + close, then search + filter chips ---
+  var h='<div class="ma-hd">';
+  h+='<div class="ma-hd-row"><div class="applaunch-title">My Apps</div>';
+  h+='<span class="ma-pill">'+actN+' / '+all.length+' active</span>';
+  h+='<button class="ma-edit-btn'+(alEditMode?' on':'')+'" onclick="alToggleEditMode()">'+(alEditMode?'&#10003; Done':'&#9999;&#65039; Edit')+'</button>';
+  h+='<button class="applaunch-close" onclick="closeAppLaunch()">&#10005;</button></div>';
+  h+='<div class="ma-hd-row"><input id="alSearch" class="ma-search" placeholder="Search apps…" value="'+escA(alQuery)+'" oninput="alSetQuery(this.value)">';
+  h+='<button class="ma-chip'+(alFilter==='all'?' on':'')+'" onclick="alSetFilter(&quot;all&quot;)">All</button>';
+  h+='<button class="ma-chip'+(alFilter==='active'?' on act':'')+'" onclick="alSetFilter(&quot;active&quot;)">Active</button>';
+  h+='<button class="ma-chip'+(alFilter==='inactive'?' on':'')+'" onclick="alSetFilter(&quot;inactive&quot;)">Off</button></div>';
+  h+='</div>';
 
-  h+='<div class="al-summary"><div class="al-summary-dot" style="background:#059669"></div>'+actN+' Active <div class="al-summary-dot" style="background:#CBD5E1;margin-left:6px"></div>'+inactN+' Inactive<span style="margin-left:auto;font-size:9px;color:var(--text2)">'+all.length+' total</span></div>';
-
-  if(alEditMode){
-    h+='<div class="al-filter">';
-    h+='<button class="al-filter-btn'+(alFilter==='all'?' active':'')+'" onclick="alFilter=\'all\';openAppLaunch()">All '+all.length+'</button>';
-    h+='<button class="al-filter-btn'+(alFilter==='active'?' active':'')+'" onclick="alFilter=\'active\';openAppLaunch()"><div class="al-filter-dot" style="background:#059669"></div> Active '+actN+'</button>';
-    h+='<button class="al-filter-btn'+(alFilter==='inactive'?' active':'')+'" onclick="alFilter=\'inactive\';openAppLaunch()"><div class="al-filter-dot" style="background:#CBD5E1"></div> Inactive '+inactN+'</button>';
-    h+='</div>';
-  }
-
-  h+='<div class="al-grid'+(alEditMode?' edit-mode':'')+'">';
-  // In view mode: apply ordering rules. In edit mode: original order (indices must match appDB)
+  // --- Groups: one full-width section each. View mode honours the order rules;
+  //     edit mode uses raw appDB order so the ci indices match. ---
   var displayList=alEditMode?appDB.map(function(c,i){return{cat:c,ci:i}}):getOrderedAppDB().map(function(c){return{cat:c,ci:appDB.indexOf(c)}});
   var activeRule=alEditMode?null:matchAppOrderRule();
-  displayList.forEach(function(item){
-    var cat=item.cat,ci=item.ci;
-    var allInCol=[];
-    if(cat.apps)allInCol=cat.apps;
-    if(cat.subs)(cat.subs||[]).forEach(function(s){allInCol=allInCol.concat(s.apps||[])});
-    var actCount=allInCol.filter(function(a){return a.active!==false}).length;
-
-    h+='<div class="al-col">';
-    if(!alEditMode)h+='<div class="al-col-hd"><div class="al-col-title">'+cat.ico+' '+esc(cat.name)+' <span class="al-col-count">'+actCount+'</span></div></div>';
-    h+='<div class="al-col-body">';
-    if(alEditMode){h+=alRenderColEdit(cat,ci)}
-    else{var c=alRenderColNormal(cat,ci);h+=c||'<div class="al-empty">No active apps</div>'}
-    h+='</div></div>';
+  h+='<div class="ma-groups">';
+  var shown=0;
+  displayList.forEach(function(item,gi){
+    var sec=alRenderGroup(item.cat,item.ci,gi);
+    if(sec){shown++;h+=sec}
   });
+  if(!shown)h+='<div class="ma-empty" style="text-align:center;padding:24px 0">No apps match “'+esc(alQuery)+'”.</div>';
+  if(alEditMode)h+='<button class="ma-newgroup" onclick="alAddCategory()">＋ New group</button>';
   h+='</div>';
-  // Show active rule indicator
-  if(activeRule&&!alEditMode){
-    h+='<div style="text-align:center;font-size:9px;color:var(--text2);margin-top:6px">📐 Order: '+esc(activeRule.label)+'</div>';
-  }
 
-  if(alEditMode){
-    h+='<div class="al-edit-add" style="margin-top:8px;font-weight:600" onclick="alAddCategory()">+ Add Category</div>';
-  }
+  if(activeRule&&!alEditMode)h+='<div class="ma-rule">📐 Order: '+esc(activeRule.label)+'</div>';
 
   sheet.innerHTML=h;
   document.getElementById('appLaunchOv').classList.add('show');
+  // Re-rendering on every keystroke drops focus — restore it, caret at the end
+  if(alQuery){var qi=document.getElementById('alSearch');if(qi){qi.focus();qi.setSelectionRange(qi.value.length,qi.value.length)}}
 }
 
 function alAskDel(type,ci,si,ai){
@@ -3699,6 +3735,7 @@ function alToggleEditMode(){
     alEditMode=false;alFilter='all';
     saveAppDB();
   }
+  alRenaming=null;alAddingIn=null; // no half-finished inline edits across modes
   openAppLaunch();
 }
 function closeAppLaunch(){
@@ -3709,7 +3746,7 @@ function closeAppLaunch(){
     alSnapshot=null;
   }
   document.getElementById('appLaunchOv').classList.remove('show');
-  alEditMode=false;alFilter='all';
+  alEditMode=false;alFilter='all';alQuery='';alRenaming=null;alAddingIn=null;
 }
 
 // Universal quick tiles rendering
