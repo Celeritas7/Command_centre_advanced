@@ -52,6 +52,43 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .qcap-hint{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);opacity:.6;white-space:nowrap}
 .qcap-chip{border:1.5px solid var(--as);background:transparent;color:var(--text2);border-radius:8px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:all .15s}
 .qcap-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+/* ===== SQUAD BOARD ===== */
+.sb-ov{position:fixed;inset:0;z-index:780;background:var(--bg);display:none;flex-direction:column;overflow-y:auto}
+.sb-ov.show{display:flex;animation:ofcFadeIn .2s ease}
+.sb-hd{display:flex;align-items:center;gap:8px;padding:16px 16px 8px;position:sticky;top:0;background:var(--bg);z-index:2}
+.sb-title{font-family:'Fraunces',serif;font-size:17px;font-weight:700;flex:1}
+.sb-hint{font-size:10px;color:var(--text2)}
+.sb-close{border:none;background:var(--as);width:30px;height:30px;border-radius:9px;font-size:14px;cursor:pointer;color:var(--text);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-body{display:flex;flex-direction:column;gap:8px;padding:0 16px 20px;flex:1}
+.sb-legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sb-leg{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px}
+.sb-leg-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.sb-pitch{position:relative;width:100%;max-width:520px;margin:0 auto;background:linear-gradient(180deg,#2d8a4e 0%,#34a058 20%,#2d8a4e 40%,#34a058 60%,#2d8a4e 80%,#34a058 100%);border-radius:18px;box-shadow:inset 0 0 0 3px rgba(255,255,255,.25),0 8px 32px rgba(0,0,0,.15)}
+.sb-grid{position:relative;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);min-height:430px;padding:10px 4px}
+.sb-col{display:flex;flex-direction:column;gap:10px;padding:6px 4px;align-items:center}
+.sb-col.divide{border-right:1.5px dashed rgba(255,255,255,.3)}
+.sb-col-hd{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:center}
+.sb-pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#fff;border-radius:7px;padding:2px 9px;white-space:nowrap}
+.sb-add{border:none;background:rgba(255,255,255,.85);width:20px;height:20px;border-radius:50%;font-size:13px;font-weight:700;cursor:pointer;line-height:1;flex-shrink:0;font-family:'DM Sans',sans-serif}
+.sb-players{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 4px;justify-items:center;width:100%}
+.sb-marker{display:flex;flex-direction:column;align-items:center;gap:4px;border:none;background:transparent;cursor:pointer;font-family:'DM Sans',sans-serif;padding:0;width:100%;min-width:0;transition:opacity .3s}
+.sb-marker.away{opacity:.55}
+.sb-marker.benched{opacity:.55;filter:grayscale(.8)}
+.sb-avatar-wrap{position:relative;display:inline-flex}
+.sb-avatar{width:40px;height:40px;border-radius:50%;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 10px rgba(0,0,0,.22)}
+.sb-count{position:absolute;top:-3px;right:-5px;min-width:16px;height:16px;border-radius:8px;color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff}
+.sb-bench-tag{position:absolute;top:-4px;right:-8px;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff;background:#57534E;border-radius:6px;padding:2px 5px;white-space:nowrap}
+.sb-plate{font-size:9px;font-weight:700;color:#fff;background:rgba(0,0,0,.38);border-radius:7px;padding:1px 7px;letter-spacing:.3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Assignment sheet */
+.sb-sheet-ov{position:fixed;inset:0;z-index:790;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
+.sb-sheet-ov.show{display:flex;animation:ofcFadeIn .2s ease}
+.sb-sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;padding:18px 16px 24px;animation:panUp .35s ease;box-shadow:0 -8px 40px rgba(0,0,0,.2)}
+.sb-chip{border:1.5px solid var(--as);background:transparent;border-radius:8px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:all .15s}
+.sb-inp{flex:1;min-width:0;border:1.5px solid var(--as);border-radius:10px;padding:8px 11px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:var(--card);color:var(--text)}
+.sb-assign-btn{border:none;color:#fff;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0}
+.sb-task{display:flex;align-items:center;gap:9px;padding:9px 10px;background:var(--card);border:1.5px solid var(--as);border-radius:11px;margin-bottom:6px}
+.sb-cb{width:18px;height:18px;border-radius:50%;border:2px solid var(--as);background:transparent;cursor:pointer;flex-shrink:0;padding:0}
+.sb-cb:active{transform:scale(.88)}
 .loc-bar{display:flex;gap:6px;margin-bottom:12px}
 .loc-g{display:flex;background:var(--card);border-radius:12px;padding:3px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .loc-b{border:none;background:transparent;padding:6px 12px;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .3s;white-space:nowrap}
@@ -1063,6 +1100,19 @@ body.tkv-active .emg-btn,body.tkv-active .rp-btn,body.tkv-active .nudge,body.tkv
   </div>
 </div>
 
+<!-- SQUAD BOARD (opened from the coach dot on the pitch) -->
+<div class="sb-ov" id="squadBoardOv">
+  <div class="sb-hd">
+    <div class="sb-title">Squad Board</div>
+    <span class="sb-hint">Tap a player to assign</span>
+    <button class="sb-close" onclick="closeSquadBoard()">&#10005;</button>
+  </div>
+  <div class="sb-body" id="squadBoardBody"></div>
+</div>
+<div class="sb-sheet-ov" id="sbSheetOv" onclick="if(event.target===this)sbCloseSheet()">
+  <div class="sb-sheet" id="sbSheet"></div>
+</div>
+
 <!-- QUICK CAPTURE (dockless nav — opened by the dashed bar on the pitch) -->
 <div class="ov-bg" id="qcapOv" onclick="if(event.target===this)closeQuickCapture()" style="z-index:760">
   <div class="ov-panel" style="max-width:420px">
@@ -1333,6 +1383,10 @@ let regenTasks={}; // taskId → {days, done_at} (per-task override + last done 
 let pendingDoneId=null; // task awaiting regen popup confirmation
 let regenSelectedDays=[]; // [0=Sun,1=Mon,...6=Sat] for day-of-week scheduling
 let timeSlotRules={}; // categoryName → {weekday_from:20, weekday_to:24, weekend:true, holiday:true}
+let benchedSquads={}; // categoryName → true (benched players are hidden from the pitch)
+let taskPriority={};  // taskId → 'High'|'Med'|'Low' (no priority column on mind_map_app_tasks)
+// Pitch line markings, shared by the pitch and the Squad Board
+const PITCH_LINES_SVG='<svg viewBox="0 0 300 450" preserveAspectRatio="none"><line x1="0" y1="225" x2="300" y2="225"/><circle cx="150" cy="225" r="45"/><circle cx="150" cy="225" r="2" fill="rgba(255,255,255,.3)"/><rect x="75" y="0" width="150" height="70"/><rect x="110" y="0" width="80" height="25"/><rect x="75" y="380" width="150" height="70"/><rect x="110" y="425" width="80" height="25"/><line x1="0" y1="0" x2="300" y2="0"/><line x1="0" y1="450" x2="300" y2="450"/><line x1="0" y1="0" x2="0" y2="450"/><line x1="300" y1="0" x2="300" y2="450"/></svg>';
 
 // ===== OFFICE STATE =====
 let ofcCheckedIn=false, ofcCheckoutDone=false, ofcTimesheetDone=false, ofcFreeeDone=false;
@@ -2654,7 +2708,7 @@ async function loadAll(){
   allTags=taR.data||[];tagMap={};allTags.forEach(t=>tagMap[t.id]=t);
   allTasks=(tR.data||[]).map(r=>({id:r.id,name:r.name,status:r.status,parent_id:r.parent_id,estimated_minutes:r.estimated_minutes,due_date:r.due_date,created_at:r.created_at,links:r.links||''}));
   taskTags={};(ttR.data||[]).forEach(r=>{if(!taskTags[r.task_id])taskTags[r.task_id]=[];taskTags[r.task_id].push(r.tag_id)});
-  const{data:mem}=await sb.from('mind_map_app_chat_memory').select('key,value').in('key',['cf_pitch','cf_possession','cf_players','cf_regen_defaults','cf_regen_tasks','cf_timeslots','cf_office','cf_ofc_qlinks','cf_ofc_apps','cf_app_db','cf_ofc_tasks','cf_ofc_bl_links','cf_screensaver','cf_pos_ranks','cf_commute','cf_custom_squads','cf_api_key','cf_briefing_cache','cf_streaks','cf_takeover_cfg','cf_takeover_fired','cf_cost_triggers','cf_app_order_rules']);
+  const{data:mem}=await sb.from('mind_map_app_chat_memory').select('key,value').in('key',['cf_pitch','cf_possession','cf_players','cf_regen_defaults','cf_regen_tasks','cf_timeslots','cf_office','cf_ofc_qlinks','cf_ofc_apps','cf_app_db','cf_ofc_tasks','cf_ofc_bl_links','cf_screensaver','cf_pos_ranks','cf_commute','cf_custom_squads','cf_api_key','cf_briefing_cache','cf_streaks','cf_takeover_cfg','cf_takeover_fired','cf_cost_triggers','cf_app_order_rules','cf_benched','cf_task_priority']);
   pitchSet=new Set();const dp={
     'Paper study':'attacker','Quick study':'attacker',Coding:'attacker','App generation':'attacker',Reading:'attacker',Documentation:'attacker',
     'AI study':'attacker','Executive':'attacker','Manager Tasks':'attacker','Reminders':'attacker','People Tasks':'attacker',
@@ -2662,7 +2716,7 @@ async function loadAll(){
     Weather:'midfielder',Health:'midfielder','Eagle Eye':'midfielder','Ghost Tracker':'midfielder','Part Inventory':'midfielder',
     Sleep:'defender',Psychology:'defender',Fashion:'defender',Cleaning:'defender'
   };
-  playerMap={...dp};regenDefaults={};regenTasks={};timeSlotRules={};
+  playerMap={...dp};regenDefaults={};regenTasks={};timeSlotRules={};benchedSquads={};taskPriority={};
   (mem||[]).forEach(m=>{
     if(m.key==='cf_pitch')try{pitchSet=new Set(JSON.parse(m.value))}catch{};
     if(m.key==='cf_possession')try{const p=JSON.parse(m.value);if(p.date===todayK())possession=p.state||'mid_morning'}catch{};
@@ -2691,6 +2745,8 @@ async function loadAll(){
     if(m.key==='cf_takeover_fired')try{tkvFiredToday=JSON.parse(m.value)}catch{};
     if(m.key==='cf_cost_triggers')try{const ct=JSON.parse(m.value);if(ct.gpsShops)costTriggerCfg.gpsShops=ct.gpsShops;if(ct.timeTriggers)costTriggerCfg.timeTriggers=ct.timeTriggers;if(ct.officeDeparture)costTriggerCfg.officeDeparture=ct.officeDeparture;if(ct.gpsCooldownMin!=null)costTriggerCfg.gpsCooldownMin=ct.gpsCooldownMin}catch{};
     if(m.key==='cf_app_order_rules')try{appOrderRules=JSON.parse(m.value)}catch{};
+    if(m.key==='cf_benched')try{benchedSquads=JSON.parse(m.value)}catch{};
+    if(m.key==='cf_task_priority')try{taskPriority=JSON.parse(m.value)}catch{};
   });
   // Migrate: convert old pitchSet to posRanks if posRanks is empty
   if(Object.keys(posRanks).length===0&&pitchSet.size>0){
@@ -2727,6 +2783,8 @@ async function savePlayerMap(){await memSave('cf_players',JSON.stringify(playerM
 async function saveRegenDefaults(){await memSave('cf_regen_defaults',JSON.stringify(regenDefaults))}
 async function saveRegenTasks(){await memSave('cf_regen_tasks',JSON.stringify(regenTasks))}
 async function saveTimeSlots(){await memSave('cf_timeslots',JSON.stringify(timeSlotRules))}
+async function saveBenched(){await memSave('cf_benched',JSON.stringify(benchedSquads))}
+async function saveTaskPriority(){await memSave('cf_task_priority',JSON.stringify(taskPriority))}
 async function saveOfcState(){await memSave('cf_office',JSON.stringify({checkedIn:ofcCheckedIn,checkoutDone:ofcCheckoutDone,timesheetDone:ofcTimesheetDone,freeeDone:ofcFreeeDone,date:todayK()}))}
 
 // Cost rule-based briefing
@@ -4318,9 +4376,228 @@ async function qcapAdd(){
   renderPitch();
 }
 
-// Squad Board entry point — the coach dot on the pitch opens it.
-// TEMPORARY SHIM: replaced by the real Squad Board in Upgrade 1.
-function openSquadBoard(){openCoach()}
+// ===== SQUAD BOARD =====
+// Team-sheet view of the WHOLE squad at once, three columns on the pitch.
+// Opened from the coach dot. Players are categories; tasks are assigned per player.
+const SB_COLS=[
+  {type:'attacker',  icon:'⚔️',name:'Attackers',color:'#DC2626',bg:'rgba(220,38,38,.06)', bd:'rgba(220,38,38,.22)'},
+  {type:'midfielder',icon:'🏃',name:'Midfield', color:'#D97706',bg:'rgba(245,158,11,.06)',bd:'rgba(245,158,11,.22)'},
+  {type:'defender',  icon:'🪞',name:'Defenders',color:'#7C3AED',bg:'rgba(139,92,246,.06)',bd:'rgba(139,92,246,.22)'},
+];
+const SB_PRI={High:'#DC2626',Med:'#D97706',Low:'#16A34A'};
+const SB_PRI_ORD={High:0,Med:1,Low:2};
+let sbPlayerList=[];      // rebuilt each render; markers reference players by index
+let sbOpenPlayer=null;    // player name whose assign sheet is open
+let sbDraftRule='One-off';
+let sbDraftPri='Med';
+
+// esc() leaves quotes alone — use this anywhere a value lands inside an attribute
+function escA(t){return esc(String(t)).replace(/"/g,'&quot;')}
+
+// Every built-in squad plus every user-created custom squad, deduped
+function sbPlayers(){
+  const seen={},out=[];
+  SQUADS.forEach(function(s){if(!seen[s.name]){seen[s.name]=1;out.push({name:s.name,type:s.type})}});
+  Object.keys(customSquads).forEach(function(n){
+    if(seen[n])return;seen[n]=1;
+    out.push({name:n,type:(customSquads[n]||{}).type||'midfielder'});
+  });
+  return out;
+}
+// Which player does a task's category belong to? (resolves aliases)
+function sbPlayerForCat(cat){
+  if(!cat)return'';
+  const sn=squadName(cat);
+  for(let i=0;i<SQUADS.length;i++)if(SQUADS[i].name===sn)return sn;
+  if(customSquads[cat])return cat;
+  if(customSquads[sn])return sn;
+  return'';
+}
+// Open tasks for a player, High priority first
+function sbTasksFor(player){
+  return allTasks.filter(function(t){
+    return t.status!=='done'&&sbPlayerForCat(tCategory(t))===player;
+  }).sort(function(a,b){
+    const pa=SB_PRI_ORD[taskPriority[a.id]],pb=SB_PRI_ORD[taskPriority[b.id]];
+    return (pa==null?1:pa)-(pb==null?1:pb);
+  });
+}
+function sbIcon(player,type){
+  const p=PERSONALITIES[player];
+  if(p&&p.ico)return p.ico;
+  for(let i=0;i<SB_COLS.length;i++)if(SB_COLS[i].type===type)return SB_COLS[i].icon;
+  return'⚽';
+}
+function sbCol(type){
+  for(let i=0;i<SB_COLS.length;i++)if(SB_COLS[i].type===type)return SB_COLS[i];
+  return SB_COLS[1];
+}
+// Which squad type currently has the ball (reuses the pitch possession state)
+function sbPhaseType(){
+  if(possession==='attacker'||possession==='attacker2')return'attacker';
+  if(possession==='mid_morning'||possession==='mid_lunch')return'midfielder';
+  if(possession==='defender')return'defender';
+  return'';
+}
+// Benched players are hidden from the pitch (see the filter in renderPitch)
+function sbIsBenched(cat){return !!(benchedSquads[cat]||benchedSquads[squadName(cat)])}
+// Human label for a task's recurrence, derived from the existing regen config
+function sbRuleLabel(id){
+  const r=regenTasks[id];if(!r)return'';
+  if(r.scheduleDays&&r.scheduleDays.length){
+    const wd=[1,2,3,4,5];
+    if(r.scheduleDays.length===5&&wd.every(function(d){return r.scheduleDays.indexOf(d)>=0}))return'Weekdays';
+    return'Scheduled';
+  }
+  const h=r.hours!=null?r.hours:(r.days!=null?r.days*24:null);
+  return h==null?'':fmtRegen(h);
+}
+// Squad names are not always tag names — resolve, and create the tag if missing
+function sbTagNameFor(player){
+  let tag=allTags.find(function(t){return t.type==='category'&&t.name===player});
+  if(tag)return tag.name;
+  tag=allTags.find(function(t){return t.type==='category'&&squadName(t.name)===player});
+  return tag?tag.name:null;
+}
+async function sbEnsureCatTag(player){
+  const existing=sbTagNameFor(player);
+  if(existing)return existing;
+  const{data,error}=await sb.from('mind_map_app_tags').insert({id:crypto.randomUUID(),name:player,type:'category',color:'#7f8c8d',is_focused:false,sort_order:0,created_at:new Date().toISOString()}).select().single();
+  if(error){alert('Error: '+error.message);return null}
+  if(!data)return null;
+  allTags.push(data);tagMap[data.id]=data;
+  return data.name;
+}
+
+function openSquadBoard(){renderSquadBoard();document.getElementById('squadBoardOv').classList.add('show')}
+function closeSquadBoard(){
+  sbOpenPlayer=null;
+  document.getElementById('sbSheetOv').classList.remove('show');
+  document.getElementById('squadBoardOv').classList.remove('show');
+}
+
+function renderSquadBoard(){
+  const phase=sbPhaseType();
+  sbPlayerList=sbPlayers();
+  let h='<div class="sb-legend">';
+  SB_COLS.forEach(function(c){
+    h+='<span class="sb-leg" style="color:'+c.color+'"><span class="sb-leg-dot" style="background:'+c.color+'"></span>'+c.name+(phase===c.type?' · on the ball':'')+'</span>';
+  });
+  h+='</div>';
+  h+='<div class="sb-pitch"><div class="fp-lines">'+PITCH_LINES_SVG+'</div><div class="sb-grid">';
+  SB_COLS.forEach(function(c,ci){
+    const line=sbPlayerList.filter(function(p){return p.type===c.type});
+    h+='<div class="sb-col'+(ci<2?' divide':'')+'">';
+    h+='<div class="sb-col-hd"><span class="sb-pill" style="background:'+c.color+'">'+c.icon+' '+c.name+' · '+line.length+(phase===c.type?' ●':'')+'</span>';
+    h+='<button class="sb-add" style="color:'+c.color+'" onclick="openNewCatModal(\''+c.type+'\')" title="Add player to '+c.name+'">+</button></div>';
+    h+='<div class="sb-players">';
+    line.forEach(function(p){
+      const idx=sbPlayerList.indexOf(p);
+      const benched=!!benchedSquads[p.name];
+      const away=!isSquadInLoc(p.name,loc);   // dim, never hide
+      const n=sbTasksFor(p.name).length;
+      h+='<button class="sb-marker'+(benched?' benched':away?' away':'')+'" onclick="sbOpenSheet('+idx+')" title="'+escA(p.name)+'">';
+      h+='<span class="sb-avatar-wrap"><span class="sb-avatar" style="border:2.5px solid '+c.color+'">'+sbIcon(p.name,p.type)+'</span>';
+      h+=benched?'<span class="sb-bench-tag">Bench</span>'
+                :'<span class="sb-count" style="background:'+c.color+'">'+n+'</span>';
+      h+='</span><span class="sb-plate">'+esc(p.name)+'</span></button>';
+    });
+    h+='</div></div>';
+  });
+  h+='</div></div>';
+  document.getElementById('squadBoardBody').innerHTML=h;
+}
+
+function sbOpenSheet(idx){
+  const p=sbPlayerList[idx];if(!p)return;
+  sbOpenPlayer=p.name;sbDraftRule='One-off';sbDraftPri='Med';
+  renderSbSheet();
+  document.getElementById('sbSheetOv').classList.add('show');
+  setTimeout(function(){const i=document.getElementById('sbInput');if(i)i.focus()},60);
+}
+function sbCloseSheet(){
+  sbOpenPlayer=null;
+  document.getElementById('sbSheetOv').classList.remove('show');
+}
+function sbRedrawKeepInput(){
+  const el=document.getElementById('sbInput');const v=el?el.value:'';
+  renderSbSheet();
+  const n=document.getElementById('sbInput');if(n){n.value=v;n.focus()}
+}
+function sbSetRule(i){sbDraftRule=TASK_RULES[i];sbRedrawKeepInput()}
+function sbSetPri(p){sbDraftPri=p;sbRedrawKeepInput()}
+
+function renderSbSheet(){
+  const name=sbOpenPlayer;if(!name)return;
+  let p=null;
+  for(let i=0;i<sbPlayerList.length;i++)if(sbPlayerList[i].name===name)p=sbPlayerList[i];
+  if(!p)p={name:name,type:catPlayer(name)||'midfielder'};
+  const c=sbCol(p.type);
+  const benched=!!benchedSquads[name];
+  const tasks=sbTasksFor(name);
+
+  let h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">';
+  h+='<span style="width:30px;height:30px;border-radius:50%;background:'+c.color+';display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">'+sbIcon(name,p.type)+'</span>';
+  h+='<span style="font-family:\'Fraunces\',serif;font-size:17px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(name)+'</span>';
+  h+='<button class="sb-close" onclick="sbCloseSheet()">&#10005;</button></div>';
+
+  h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">';
+  h+='<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#fff;background:'+c.color+';border-radius:6px;padding:2px 8px;white-space:nowrap">'+c.name+'</span>';
+  h+='<span style="font-size:11px;color:var(--text2)">'+tasks.length+' '+(tasks.length===1?'task':'tasks')+'</span>';
+  h+='<button onclick="sbToggleBench()" style="margin-left:auto;white-space:nowrap;border:1.5px solid '+(benched?c.color:'var(--as)')+';background:'+(benched?c.color:'transparent')+';color:'+(benched?'#fff':'var(--text2)')+';border-radius:8px;padding:3px 10px;font-size:10px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif">'+(benched?'Benched — tap to return':'Bench player')+'</button></div>';
+
+  h+='<div style="background:'+c.bg+';border:1.5px solid '+c.bd+';border-radius:12px;padding:12px;margin-bottom:14px;'+(benched?'opacity:.45;pointer-events:none':'')+'">';
+  h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:'+c.color+';margin-bottom:8px">＋ Assign to '+esc(name)+'</div>';
+  h+='<div style="display:flex;gap:6px;margin-bottom:10px"><input id="sbInput" class="sb-inp" placeholder="New task for '+escA(name)+'…" onkeydown="if(event.key===\'Enter\')sbAssign()"><button class="sb-assign-btn" style="background:'+c.color+'" onclick="sbAssign()">Assign</button></div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+TASK_RULES.map(function(r,i){
+    const on=sbDraftRule===r;
+    return'<button class="sb-chip" onclick="sbSetRule('+i+')" style="'+(on?'background:'+c.color+';border-color:'+c.color+';color:#fff':'color:var(--text2)')+'">'+r+'</button>';
+  }).join('')+'</div>';
+  h+='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2)">Priority</span>';
+  h+=Object.keys(SB_PRI).map(function(k){
+    const on=sbDraftPri===k;
+    return'<button class="sb-chip" onclick="sbSetPri(\''+k+'\')" style="'+(on?'background:'+SB_PRI[k]+';border-color:'+SB_PRI[k]+';color:#fff':'color:'+SB_PRI[k])+'">'+k+'</button>';
+  }).join('');
+  h+='</div></div>';
+
+  tasks.forEach(function(t){
+    const pri=taskPriority[t.id]||'Med';
+    const rule=sbRuleLabel(t.id);
+    h+='<div class="sb-task"><button class="sb-cb" style="border-color:'+SB_PRI[pri]+'" onclick="sbCheck(\''+t.id+'\')" title="Mark done"></button>';
+    h+='<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;line-height:1.3">'+esc(t.name)+'</div>';
+    h+='<div style="font-size:9px;color:var(--text2);margin-top:2px">'+(rule?esc(rule)+' · ':'')+pri+'</div></div></div>';
+  });
+  if(!tasks.length)h+='<div style="font-size:11px;color:var(--text2);opacity:.7;text-align:center;padding:10px 0">No tasks yet — assign the first above.</div>';
+
+  document.getElementById('sbSheet').innerHTML=h;
+}
+
+async function sbAssign(){
+  const name=sbOpenPlayer;if(!name)return;
+  const inp=document.getElementById('sbInput');if(!inp)return;
+  const txt=inp.value.trim();if(!txt)return;
+  inp.value='';
+  const tagName=await sbEnsureCatTag(name);
+  const id=await createTask(txt,tagName);
+  if(id){
+    taskPriority[id]=sbDraftPri;await saveTaskPriority();
+    await applyTaskRule(id,sbDraftRule);
+    if(tagName)addRank(tagName,id);   // put the new task on the pitch
+  }
+  renderSbSheet();
+  const n=document.getElementById('sbInput');if(n)n.focus();
+  renderSquadBoard();
+}
+async function sbCheck(id){
+  await markDone(id);
+  renderSbSheet();renderSquadBoard();renderPitch();
+}
+async function sbToggleBench(){
+  const n=sbOpenPlayer;if(!n)return;
+  if(benchedSquads[n])delete benchedSquads[n];else benchedSquads[n]=true;
+  await saveBenched();
+  renderSbSheet();renderSquadBoard();renderPitch();
+}
 
 // Theme/UI
 function applyTheme(l){const r=document.documentElement,p='--'+l;['bg','accent','as','card','text','text2'].forEach(k=>r.style.setProperty('--'+k,getComputedStyle(r).getPropertyValue(p+'-'+k)))}
@@ -4533,6 +4810,7 @@ async function saveCatModal(){
   customSquads[catTag?catTag.name:name]={type:player,locs};
   await memSave('cf_custom_squads',JSON.stringify(customSquads));
   closeCatModal();renderOv();
+  if(document.getElementById('squadBoardOv').classList.contains('show'))renderSquadBoard();
 }
 
 // ===== POSSESSION =====
@@ -4650,6 +4928,7 @@ function renderPitch(){
   pt.forEach(t=>{const cat=tCategory(t)||'Other';if(!catGroups[cat])catGroups[cat]=[];catGroups[cat].push(t)});
   const zones={attacker:[],midfielder:[],defender:[],other:[]};
   for(const[cat,tasks]of Object.entries(catGroups)){
+    if(sbIsBenched(cat))continue; // benched on the Squad Board = off the pitch
     const pl=catPlayer(cat);
     // Time slot filter: hide attackers outside their allowed window
     if(pl==='attacker'&&!isCatAllowedNow(cat))continue;
