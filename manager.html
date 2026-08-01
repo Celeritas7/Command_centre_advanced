@@ -381,15 +381,56 @@ function renderPage(){
 }
 
 // ===== PAGE: DAY PLANS =====
+// Preset labels for the confirm dialog / buttons (payloads live in applyPreset)
+var DP_PRESETS={
+  deepWork:{label:'💻 Deep Work Day'},
+  balanced:{label:'⚖️ Balanced Day'},
+  recovery:{label:'🧘 Recovery Day'},
+  office:{label:'🏢 Office Day'}
+};
+
+function dpToMin(t){var p=String(t||'00:00').split(':');return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0)}
+function dpFmtMin(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function dpSqCls(sq){return sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid'}
+function dpSqCol(cls){return cls==='atk'?'var(--atkC)':cls==='def'?'var(--defC)':'var(--midC)'}
+
+// Overlap detection across [start,start+duration) minute ranges -> {interruptId:true}
+function dpFindClashes(ints){
+  var ids={};
+  for(var a=0;a<ints.length;a++)for(var b=a+1;b<ints.length;b++){
+    var s1=dpToMin(ints[a].time),e1=s1+(ints[a].duration||0);
+    var s2=dpToMin(ints[b].time),e2=s2+(ints[b].duration||0);
+    if(s1<e2&&s2<e1){ids[ints[a].id]=true;ids[ints[b].id]=true}
+  }
+  return ids;
+}
+// Group overlapping interrupts into connected clusters (only clusters of 2+)
+function dpClashGroups(ints){
+  var groups=[];
+  ints.forEach(function(x){
+    var s=dpToMin(x.time),e=s+(x.duration||0),placed=false;
+    for(var g=0;g<groups.length;g++){
+      if(groups[g].some(function(y){var s2=dpToMin(y.time),e2=s2+(y.duration||0);return s<e2&&s2<e})){groups[g].push(x);placed=true;break}
+    }
+    if(!placed)groups.push([x]);
+  });
+  return groups.filter(function(g){return g.length>1});
+}
+
 function pgDayPlans(){
   var plan=dayPlans[activeDayType]||{base:'',location:'home',interrupts:[]};
+  var ints=(plan.interrupts||[]).slice().sort(function(a,b){return String(a.time).localeCompare(String(b.time))});
+  var clashes=dpFindClashes(ints);
+  var clashCount=Object.keys(clashes).length;
   var baseSq=findSq(plan.base);
+  var isEmpty=!ints.length;
   var h='<div class="page-hdr"><div class="page-title">📅 Day Plans</div><div class="page-sub">Set a base activity for the whole day + scheduled interrupts that block it</div></div>';
 
-  // Day type tabs
+  // Day type tabs (with interrupt counts)
   h+='<div style="display:flex;gap:4px;margin-bottom:16px">';
-  ['weekday','weekend'].forEach(function(dt){
-    h+='<button class="mgr-toggle '+(activeDayType===dt?'on':'')+'" style="flex:1;justify-content:center;padding:8px;font-size:12px" onclick="activeDayType=\''+dt+'\';renderPage()">'+(dt==='weekday'?'📅 Weekday':'🌴 Weekend')+'</button>';
+  [['weekday','📅 Weekday'],['weekend','🌴 Weekend']].forEach(function(d){
+    var n=((dayPlans[d[0]]||{}).interrupts||[]).length;
+    h+='<button class="mgr-toggle '+(activeDayType===d[0]?'on':'')+'" style="flex:1;justify-content:center;padding:9px;font-size:12px" onclick="activeDayType=\''+d[0]+'\';openInt=null;renderPage()">'+d[1]+(n?' · '+n:'')+'</button>';
   });
   h+='</div>';
 
@@ -399,125 +440,127 @@ function pgDayPlans(){
   h+='<div class="mgr-card-sub">This squad owns the entire day. No timer — it runs continuously until an interrupt fires. After each interrupt completes, this resumes automatically.</div>';
   h+='<div class="mgr-row"><span class="mgr-label">Squad</span><select class="mgr-sel" style="flex:1" onchange="dayPlans[activeDayType].base=this.value;saveDayPlans();renderPage()">';
   h+='<option value="">— None (schedule-driven) —</option>';
-  SQUADS.forEach(function(s){h+='<option value="'+s.name+'" '+(plan.base===s.name?'selected':'')+'>'+s.ico+' '+s.name+'</option>'});
+  SQUADS.forEach(function(s){h+='<option value="'+esc(s.name)+'" '+(plan.base===s.name?'selected':'')+'>'+s.ico+' '+esc(s.name)+'</option>'});
   h+='</select></div>';
   h+='<div class="mgr-row"><span class="mgr-label">Location</span><div style="display:flex;gap:4px">';
-  ['home','office','outside'].forEach(function(l){
-    var on=plan.location===l;
-    h+='<button class="mgr-toggle '+(on?'on':'')+'" onclick="dayPlans[activeDayType].location=\''+l+'\';saveDayPlans();renderPage()">'+(({home:'🏠 Home',office:'🏢 Office',outside:'🌳 Outside'})[l])+'</button>';
+  [['home','🏠 Home'],['office','🏢 Office'],['outside','🌳 Outside']].forEach(function(l){
+    h+='<button class="mgr-toggle '+(plan.location===l[0]?'on':'')+'" onclick="dayPlans[activeDayType].location=\''+l[0]+'\';saveDayPlans();renderPage()">'+l[1]+'</button>';
   });
   h+='</div></div></div>';
 
-  // Visual day timeline
-  h+=renderDayTimeline(plan);
-
-  // Interrupts list
-  h+='<div style="display:flex;align-items:center;gap:8px;margin:20px 0 12px"><span style="font-family:Fraunces,serif;font-size:16px;font-weight:700">Scheduled Interrupts</span><span style="font-size:10px;color:var(--text2)">'+(plan.interrupts||[]).length+' configured</span></div>';
-
-  (plan.interrupts||[]).sort(function(a,b){return a.time.localeCompare(b.time)}).forEach(function(intr,i){
-    var sq=findSq(intr.squad);
-    var cls=sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid';
-    var borderCol=cls==='atk'?'var(--atkC)':cls==='def'?'var(--defC)':'var(--midC)';
-
-    h+='<div class="mgr-card" style="border-left:3px solid '+borderCol+';padding:12px">';
-    // Header
-    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-    h+='<span style="font-family:JetBrains Mono,monospace;font-size:16px;font-weight:700;color:var(--amber);min-width:50px">'+intr.time+'</span>';
-    h+='<span style="font-size:16px">'+(sq?sq.ico:'❓')+'</span>';
-    h+='<span style="font-size:12px;font-weight:700;flex:1">'+(intr.squad||'Unset')+'</span>';
-    h+='<span style="font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;'+(intr.hardLock?'background:rgba(226,75,74,.15);color:var(--red)':'background:var(--amberBg);color:var(--amber)')+'">'+( intr.hardLock?'🔴 HARD':'🟡 SOFT')+'</span>';
-    h+='<span style="font-size:9px;color:var(--text2)">'+intr.duration+'min</span>';
+  if(isEmpty){
+    // Empty state: presets first, no timeline / no interrupt list
+    h+='<div class="mgr-card" style="text-align:center;padding:28px 16px">';
+    h+='<div style="font-size:26px;margin-bottom:8px">📅</div>';
+    h+='<div style="font-size:13px;font-weight:700;margin-bottom:4px">No interrupts yet</div>';
+    h+='<div style="font-size:11px;color:var(--text2);margin-bottom:16px;line-height:1.5">Start from a preset — you can edit every interrupt after applying.</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">';
+    Object.keys(DP_PRESETS).forEach(function(k){h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\''+k+'\')">'+DP_PRESETS[k].label+'</button>'});
     h+='</div>';
-
-    // Config rows
-    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">';
-    h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:40px">Time</span><input class="mgr-inp" type="time" value="'+intr.time+'" onchange="dayPlans[activeDayType].interrupts['+i+'].time=this.value;saveDayPlans();renderPage()"></div>';
-    h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:40px">Squad</span><select class="mgr-sel" onchange="dayPlans[activeDayType].interrupts['+i+'].squad=this.value;saveDayPlans();renderPage()">';
-    SQUADS.forEach(function(s){h+='<option value="'+s.name+'" '+(intr.squad===s.name?'selected':'')+'>'+s.ico+' '+s.name+'</option>'});
-    h+='</select></div>';
-    h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:30px">Dur</span><select class="mgr-sel" onchange="dayPlans[activeDayType].interrupts['+i+'].duration=parseInt(this.value);saveDayPlans();renderPage()">';
-    [5,10,15,20,30,45,60].forEach(function(m){h+='<option value="'+m+'" '+(intr.duration===m?'selected':'')+'>'+m+'m</option>'});
-    h+='</select></div>';
-    h+='<button class="mgr-toggle '+(intr.hardLock?'on':'')+'" style="'+(intr.hardLock?'background:var(--red);border-color:var(--red)':'')+'" onclick="dayPlans[activeDayType].interrupts['+i+'].hardLock=!dayPlans[activeDayType].interrupts['+i+'].hardLock;saveDayPlans();renderPage()">'+(intr.hardLock?'Hard':'Soft')+'</button>';
+    h+='<div style="margin-top:14px"><button class="mgr-btn mgr-btn-ghost" onclick="addInterrupt()">+ Or add a single interrupt</button></div>';
     h+='</div>';
+  }else{
+    // Visual day timeline
+    h+=renderDayTimeline(plan,ints,clashes);
 
-    // Tasks
-    h+='<div style="font-size:9px;font-weight:600;color:var(--text2);margin-bottom:4px">Checklist ('+(intr.tasks||[]).length+')</div>';
-    (intr.tasks||[]).forEach(function(t,ti){
-      h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:2px"><input class="mgr-inp" style="width:24px;text-align:center;font-size:12px" value="'+esc(t.ico)+'" onchange="dayPlans[activeDayType].interrupts['+i+'].tasks['+ti+'].ico=this.value;saveDayPlans()"><input class="mgr-inp" style="flex:1" value="'+esc(t.text)+'" onchange="dayPlans[activeDayType].interrupts['+i+'].tasks['+ti+'].text=this.value;saveDayPlans()"><button class="mgr-btn mgr-btn-danger" style="padding:1px 5px;font-size:8px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.splice('+ti+',1);saveDayPlans();renderPage()">✕</button></div>';
+    // Overlap warnings + resolver cards
+    if(clashCount){
+      h+='<div class="clash-note">⚠️ '+clashCount+' interrupts overlap — all tasks in the clash are shown below so you can choose what to do.</div>';
+      dpClashGroups(ints).forEach(function(g){
+        var start=Math.min.apply(null,g.map(function(x){return dpToMin(x.time)}));
+        var end=Math.max.apply(null,g.map(function(x){return dpToMin(x.time)+(x.duration||0)}));
+        // HARD locks first — they take priority in the window
+        var ordered=g.slice().sort(function(a,b){return (b.hardLock?1:0)-(a.hardLock?1:0)||String(a.time).localeCompare(String(b.time))});
+        h+='<div class="clash-card">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;color:var(--red)">'+dpFmtMin(start)+'–'+dpFmtMin(end)+'</span><span style="font-size:10px;color:var(--text2)">'+g.length+' interrupts compete for this window — hard locks rank first</span></div>';
+        h+='<div class="clash-cols">';
+        ordered.forEach(function(x,oi){
+          var sq=findSq(x.squad);var cls=dpSqCls(sq);
+          h+='<div class="clash-col" style="border-top-color:'+dpSqCol(cls)+'">';
+          h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:14px">'+(sq?sq.ico:'❓')+'</span><span style="font-size:12px;font-weight:700;flex:1">'+esc(x.squad||'Unset')+'</span><span class="lock-badge '+(x.hardLock?'hard':'soft')+'" style="cursor:default">'+(x.hardLock?'🔴 P1 · HARD':'🟡 P'+(oi+1)+' · SOFT')+'</span></div>';
+          h+='<div style="font-size:9px;color:var(--text2);font-family:JetBrains Mono,monospace;margin-bottom:6px">'+esc(x.time)+' · '+(x.duration||0)+'min</div>';
+          (x.tasks||[]).forEach(function(t){h+='<div class="clash-task"><span>'+esc(t.ico)+'</span><span>'+esc(t.text)+'</span></div>'});
+          if(!(x.tasks||[]).length)h+='<div style="font-size:10px;color:var(--text3)">No checklist items</div>';
+          h+='</div>';
+        });
+        h+='</div></div>';
+      });
+    }
+
+    // Interrupts: collapsed rows, one editor open at a time
+    h+='<div style="display:flex;align-items:center;gap:8px;margin:18px 0 10px"><span style="font-family:Fraunces,serif;font-size:16px;font-weight:700">Scheduled Interrupts</span><span style="font-size:10px;color:var(--text2)">'+ints.length+' configured</span></div>';
+    ints.forEach(function(intr){
+      var sq=findSq(intr.squad);
+      var cls=dpSqCls(sq);
+      var idx=(dayPlans[activeDayType].interrupts||[]).indexOf(intr);
+      var open=openInt===intr.id;
+      h+='<div class="int-row'+(open?' open':'')+'" style="border-left-color:'+dpSqCol(cls)+'" onclick="dpToggleInt(\''+sSn(String(intr.id))+'\')">';
+      h+='<span class="int-time">'+esc(intr.time)+'</span>';
+      h+='<span class="int-name">'+(sq?sq.ico:'❓')+' '+esc(intr.squad||'Unset')+(clashes[intr.id]?' <span style="font-size:10px" title="Overlaps another interrupt">⚠️</span>':'')+'</span>';
+      h+='<span class="int-meta">'+(intr.duration||0)+'m · '+(intr.tasks||[]).length+' tasks</span>';
+      h+='<button class="lock-badge '+(intr.hardLock?'hard':'soft')+'" title="Tap to toggle hard/soft lock" onclick="event.stopPropagation();dpToggleLock('+idx+')">'+(intr.hardLock?'🔴 HARD':'🟡 SOFT')+'</button>';
+      h+='<span class="chev">▼</span>';
+      h+='</div>';
+      if(open)h+=dpRenderEditor(intr,idx);
     });
-    h+='<div style="display:flex;gap:4px;margin-top:4px"><button class="mgr-btn mgr-btn-ghost" style="font-size:8px;padding:2px 8px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.push({ico:\'📋\',text:\'New task\'});saveDayPlans();renderPage()">+ Task</button>';
-    h+='<button class="mgr-btn mgr-btn-danger" style="font-size:8px;padding:2px 8px;margin-left:auto" onclick="dayPlans[activeDayType].interrupts.splice('+i+',1);saveDayPlans();renderPage()">Remove interrupt</button></div>';
-    h+='</div>';
-  });
+    h+='<div class="mgr-card" style="border-style:dashed;text-align:center;cursor:pointer;padding:14px;margin-top:6px" onclick="addInterrupt()"><span style="font-size:11px;color:var(--text2)">+ Add interrupt</span></div>';
 
-  // Add interrupt
-  h+='<div class="mgr-card" style="border-style:dashed;text-align:center;cursor:pointer;padding:16px" onclick="addInterrupt()">';
-  h+='<div style="font-size:14px;margin-bottom:4px">+</div>';
-  h+='<div style="font-size:11px;color:var(--text2)">Add interrupt</div>';
-  h+='</div>';
+    // Quick presets (confirm before replacing)
+    h+='<div class="mgr-card" style="margin-top:12px"><div class="mgr-card-hd">🎯 Quick Presets</div><div class="mgr-card-sub">Applying a preset replaces this day’s current plan — you’ll be asked to confirm.</div><div style="display:flex;gap:6px;flex-wrap:wrap">';
+    Object.keys(DP_PRESETS).forEach(function(k){h+='<button class="mgr-btn mgr-btn-primary" onclick="confirmPreset(\''+k+'\')">'+DP_PRESETS[k].label+'</button>'});
+    h+='</div></div>';
+  }
 
-  // Quick presets
-  h+='<div class="mgr-card"><div class="mgr-card-hd">🎯 Quick Presets</div><div class="mgr-card-sub">Apply a preset template to the current day plan</div>';
-  h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
-  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'deepWork\')">💻 Deep Work Day</button>';
-  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'balanced\')">⚖️ Balanced Day</button>';
-  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'recovery\')">🧘 Recovery Day</button>';
-  h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\'office\')">🏢 Office Day</button>';
-  h+='</div></div>';
+  // Confirm dialog
+  if(pendingPreset&&DP_PRESETS[pendingPreset]){
+    h+='<div class="confirm-wrap" onclick="pendingPreset=null;renderPage()"><div class="confirm-box" onclick="event.stopPropagation()">';
+    h+='<div style="font-size:14px;font-weight:700;margin-bottom:6px">Replace '+activeDayType+' plan?</div>';
+    h+='<div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:14px">'+DP_PRESETS[pendingPreset].label+' will replace the base activity and all '+ints.length+' interrupts. You can undo right after.</div>';
+    h+='<div style="display:flex;gap:8px;justify-content:flex-end"><button class="mgr-btn" style="background:var(--card2);color:var(--text2)" onclick="pendingPreset=null;renderPage()">Cancel</button><button class="mgr-btn mgr-btn-primary" onclick="applyPreset(pendingPreset)">Apply preset</button></div>';
+    h+='</div></div>';
+  }
+  // Undo toast
+  if(undoSnapshot){
+    h+='<div class="undo-toast"><span>Preset applied</span><button class="mgr-btn" style="background:var(--amber);color:var(--bg);padding:5px 12px" onclick="undoPreset()">Undo</button></div>';
+  }
 
   return h;
 }
 
-function renderDayTimeline(plan){
-  var h='<div class="tl-wrap" style="margin-top:12px">';
-  // Hours header 5-23
-  h+='<div class="tl-header"><div class="tl-label-col" style="min-width:60px"></div><div class="tl-hours">';
-  for(var i=5;i<=23;i++)h+='<div class="tl-hour'+(i===new Date().getHours()?' now':'')+'">'+String(i).padStart(2,'0')+'</div>';
-  h+='</div></div>';
-
-  // Base row
+function renderDayTimeline(plan,ints,clashes){
+  ints=ints||(plan.interrupts||[]);
+  clashes=clashes||{};
   var baseSq=findSq(plan.base);
-  var baseCls=baseSq?(baseSq.type==='attacker'?'atk':baseSq.type==='midfielder'?'mid':'def'):'atk';
-  h+='<div class="tl-row"><div class="tl-row-label" style="min-width:60px"><span style="font-size:9px;font-weight:700">BASE</span></div><div class="tl-track">';
-  if(plan.base){
-    h+='<div class="tl-bar '+baseCls+'" style="left:0%;width:100%;opacity:.25;font-size:8px">'+(baseSq?baseSq.ico:'')+' '+plan.base+' (all day)</div>';
-  }
-  // Overlay interrupts on the base
-  (plan.interrupts||[]).forEach(function(intr){
-    var parts=intr.time.split(':');var hr=parseInt(parts[0]),mn=parseInt(parts[1]||0);
-    var startPct=((hr-5+mn/60)/18)*100;
-    var widthPct=Math.max((intr.duration/60/18)*100,2);
-    var sq=findSq(intr.squad);
-    var cls=sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid';
-    h+='<div class="tl-bar '+cls+'" style="left:'+startPct+'%;width:'+widthPct+'%;font-size:7px;z-index:2" title="'+intr.squad+' at '+intr.time+' ('+intr.duration+'min)">'+(sq?sq.ico:'')+' '+String(hr).padStart(2,'0')+':'+String(mn).padStart(2,'0')+'</div>';
-  });
-  // Now line
+  var h='<div class="tl-wrap" style="margin:12px 0 8px"><div class="tl-body">';
+  // Hours header 5-23
   var nowH=new Date().getHours(),nowM=new Date().getMinutes();
-  if(nowH>=5&&nowH<=23)h+='<div class="tl-now" style="left:'+((nowH-5+nowM/60)/18*100)+'%"></div>';
+  h+='<div class="tl-header"><div class="tl-label"></div><div class="tl-hours">';
+  for(var i=5;i<=23;i++)h+='<div class="tl-hour'+(i===nowH?' now':'')+'">'+String(i).padStart(2,'0')+'</div>';
   h+='</div></div>';
 
-  // Interrupt rows (one per unique squad in interrupts)
-  var usedSquads={};
-  (plan.interrupts||[]).forEach(function(intr){
-    if(usedSquads[intr.squad])return;usedSquads[intr.squad]=true;
+  // Base row — base bar + every interrupt overlaid
+  h+='<div class="tl-row"><div class="tl-label">BASE</div><div class="tl-track">';
+  if(plan.base)h+='<div class="tl-bar '+dpSqCls(baseSq)+'" style="left:0%;width:100%;opacity:.25">'+(baseSq?baseSq.ico:'')+' '+esc(plan.base)+' (all day)</div>';
+  ints.forEach(function(x){h+=dpTlBar(x,clashes)});
+  h+='</div></div>';
+
+  // One row per unique squad
+  var seen={};
+  ints.forEach(function(intr){
+    if(seen[intr.squad])return;seen[intr.squad]=true;
     var sq=findSq(intr.squad);
-    var cls=sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid';
-    h+='<div class="tl-row"><div class="tl-row-label" style="min-width:60px"><span style="font-size:10px">'+(sq?sq.ico:'')+'</span><span style="font-size:8px">'+intr.squad+'</span></div><div class="tl-track">';
-    (plan.interrupts||[]).filter(function(x){return x.squad===intr.squad}).forEach(function(x){
-      var pts=x.time.split(':');var xhr=parseInt(pts[0]),xmn=parseInt(pts[1]||0);
-      var sp=((xhr-5+xmn/60)/18)*100;var wp=Math.max((x.duration/60/18)*100,2);
-      h+='<div class="tl-bar '+cls+'" style="left:'+sp+'%;width:'+wp+'%;font-size:7px" title="'+x.duration+'min '+(x.hardLock?'HARD':'soft')+'">'+String(xhr).padStart(2,'0')+':'+String(xmn).padStart(2,'0')+'</div>';
-    });
-    if(nowH>=5&&nowH<=23)h+='<div class="tl-now" style="left:'+((nowH-5+nowM/60)/18*100)+'%"></div>';
+    h+='<div class="tl-row"><div class="tl-label"><span>'+(sq?sq.ico:'')+'</span><span style="font-size:9px;font-weight:600;color:var(--text2)">'+esc(intr.squad||'Unset')+'</span></div><div class="tl-track">';
+    ints.filter(function(x){return x.squad===intr.squad}).forEach(function(x){h+=dpTlBar(x,clashes)});
     h+='</div></div>';
   });
 
-  h+='</div>';
+  // Single now-line overlay across the whole body (60px label gutter + track)
+  if(nowH>=5&&nowH<=23)h+='<div class="tl-now" style="left:calc(60px + (100% - 60px) * '+(((nowH-5+nowM/60)/18).toFixed(4))+')"></div>';
+  h+='</div></div>';
 
   // Summary stats
-  var totalInt=(plan.interrupts||[]).reduce(function(s,x){return s+x.duration},0);
-  var hardCount=(plan.interrupts||[]).filter(function(x){return x.hardLock}).length;
+  var totalInt=ints.reduce(function(s,x){return s+(x.duration||0)},0);
+  var hardCount=ints.filter(function(x){return x.hardLock}).length;
   var baseHrs=Math.max(0,Math.round((18*60-totalInt)/60*10)/10);
   h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;margin-bottom:8px">';
   h+='<div style="background:var(--card);border:1px solid var(--amberBd);border-radius:8px;padding:8px 14px;flex:1;min-width:100px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--amber)">'+baseHrs+'h</div><div style="font-size:9px;color:var(--text2)">Base activity time</div></div>';
@@ -528,22 +571,66 @@ function renderDayTimeline(plan){
   return h;
 }
 
+// Bars narrower than ~30px (on the 640px min track) render as a tick; full info stays in the title
+function dpTlBar(x,clashes){
+  var sp=(dpToMin(x.time)/60-5)/18*100;
+  var wp=((x.duration||0)/60/18)*100;
+  var sq=findSq(x.squad);var cls=dpSqCls(sq);
+  var clash=clashes[x.id]?' clash':'';
+  var tip=esc((x.squad||'Unset')+' at '+x.time+' · '+(x.duration||0)+'min · '+(x.hardLock?'HARD':'soft'));
+  if(wp<4.7)return '<div class="tl-tick '+cls+clash+'" style="left:'+sp.toFixed(2)+'%" title="'+tip+'"></div>';
+  return '<div class="tl-bar '+cls+clash+'" style="left:'+sp.toFixed(2)+'%;width:'+wp.toFixed(2)+'%" title="'+tip+'">'+esc(x.time)+'</div>';
+}
+
+function dpRenderEditor(intr,i){
+  var h='<div class="int-editor" onclick="event.stopPropagation()">';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">';
+  h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:34px">Time</span><input class="mgr-inp" type="time" value="'+esc(intr.time)+'" onchange="dpUpd('+i+',\'time\',this.value)"></div>';
+  h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:40px">Squad</span><select class="mgr-sel" onchange="dpUpd('+i+',\'squad\',this.value)">';
+  SQUADS.forEach(function(s){h+='<option value="'+esc(s.name)+'" '+(intr.squad===s.name?'selected':'')+'>'+s.ico+' '+esc(s.name)+'</option>'});
+  h+='</select></div>';
+  h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:28px">Dur</span><select class="mgr-sel" onchange="dpUpd('+i+',\'duration\',parseInt(this.value))">';
+  [5,10,15,20,30,45,60,90,120].forEach(function(m){h+='<option value="'+m+'" '+(intr.duration===m?'selected':'')+'>'+m+'m</option>'});
+  h+='</select></div>';
+  h+='</div>';
+  h+='<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:6px">Checklist ('+(intr.tasks||[]).length+')</div>';
+  (intr.tasks||[]).forEach(function(t,ti){
+    h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input class="mgr-inp" style="width:30px;text-align:center" value="'+esc(t.ico)+'" onchange="dpUpdTask('+i+','+ti+',\'ico\',this.value)"><input class="mgr-inp" style="flex:1" value="'+esc(t.text)+'" onchange="dpUpdTask('+i+','+ti+',\'text\',this.value)"><button class="mgr-btn mgr-btn-danger" style="padding:4px 8px;font-size:10px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.splice('+ti+',1);saveDayPlans();renderPage()">✕</button></div>';
+  });
+  h+='<div style="display:flex;gap:4px;margin-top:8px"><button class="mgr-btn mgr-btn-ghost" style="font-size:10px;padding:4px 10px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.push({ico:\'📋\',text:\'New task\'});saveDayPlans();renderPage()">+ Task</button>';
+  h+='<button class="mgr-btn mgr-btn-danger" style="font-size:10px;padding:4px 10px;margin-left:auto" onclick="openInt=null;dayPlans[activeDayType].interrupts.splice('+i+',1);saveDayPlans();renderPage()">Remove interrupt</button></div>';
+  h+='</div>';
+  return h;
+}
+
+function dpToggleInt(id){openInt=(openInt===id?null:id);renderPage()}
+function dpToggleLock(i){var x=dayPlans[activeDayType].interrupts[i];if(!x)return;x.hardLock=!x.hardLock;saveDayPlans();renderPage()}
+function dpUpd(i,k,v){dayPlans[activeDayType].interrupts[i][k]=v;saveDayPlans();renderPage()}
+function dpUpdTask(i,ti,k,v){dayPlans[activeDayType].interrupts[i].tasks[ti][k]=v;saveDayPlans()}
+
 function addInterrupt(){
   var plan=dayPlans[activeDayType];
   if(!plan.interrupts)plan.interrupts=[];
-  plan.interrupts.push({
+  var ni={
     id:'int_'+Date.now(),
     time:'12:00',
-    squad:'Food',
+    squad:SQUADS[0].name,
     duration:30,
     hardLock:true,
     tasks:[{ico:'📋',text:'New task'}]
-  });
+  };
+  plan.interrupts.push(ni);
+  openInt=ni.id;
   saveDayPlans();renderPage();
 }
 
+function confirmPreset(name){pendingPreset=name;renderPage()}
+
 function applyPreset(name){
   var plan=dayPlans[activeDayType];
+  // Snapshot the whole plan so the undo toast can restore it exactly
+  undoSnapshot=JSON.parse(JSON.stringify(plan));
+  pendingPreset=null;
   if(name==='deepWork'){
     plan.base='App Gen';plan.location='home';
     plan.interrupts=[
@@ -593,7 +680,19 @@ function applyPreset(name){
       {id:'of8',time:'19:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Dinner'}]},
       {id:'of9',time:'22:00',squad:'Sleep',duration:10,hardLock:true,tasks:[{ico:'📴',text:'Wind down'}]},
     ];
+  }else{
+    undoSnapshot=null;renderPage();return;
   }
+  openInt=null;
+  saveDayPlans();renderPage();
+  clearTimeout(undoTimer);undoTimer=setTimeout(function(){undoSnapshot=null;renderPage()},8000);
+}
+
+function undoPreset(){
+  if(!undoSnapshot)return;
+  dayPlans[activeDayType]=undoSnapshot;
+  undoSnapshot=null;clearTimeout(undoTimer);
+  openInt=null;
   saveDayPlans();renderPage();
 }
 
