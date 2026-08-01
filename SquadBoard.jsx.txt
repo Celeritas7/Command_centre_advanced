@@ -1,0 +1,179 @@
+// Squad Board — team-sheet formation: all players on the pitch by squad line, tap to assign
+const { PitchField, OverlayPanel, TaskCard, TextInput, Button, Chip, Badge } = window.CommandCentreDesignSystem_63bc0b;
+
+const SB_SQUADS = [
+  { key:'atk', icon:'⚔️', name:'Attackers', color:'#DC2626', bg:'rgba(220,38,38,.04)', bd:'rgba(220,38,38,.18)' },
+  { key:'mid', icon:'🏃', name:'Midfield', color:'#D97706', bg:'rgba(245,158,11,.04)', bd:'rgba(245,158,11,.18)' },
+  { key:'def', icon:'🪞', name:'Defenders', color:'#7C3AED', bg:'rgba(139,92,246,.04)', bd:'rgba(139,92,246,.18)' },
+];
+const SB_PLAYERS = [
+  { id:'career', label:'Career', icon:'💼', squad:'atk' },
+  { id:'learn', label:'Learn', icon:'📚', squad:'atk' },
+  { id:'study', label:'Study', icon:'✍️', squad:'mid' },
+  { id:'food', label:'Food', icon:'🍱', squad:'mid' },
+  { id:'clean', label:'Clean', icon:'🧹', squad:'mid' },
+  { id:'sleep', label:'Sleep', icon:'😴', squad:'def' },
+  { id:'move', label:'Move', icon:'💪', squad:'def' },
+];
+const SB_SEED = {
+  career:[{t:'Apply to 1 Tokyo ME role',rule:'Daily',pri:'High'},{t:'Update LinkedIn headline',rule:'One-off',pri:'Med'}],
+  learn:[{t:'Finish JLPT N1 drill set',rule:'Daily',pri:'High'},{t:'15 min Anki review',rule:'Daily',pri:'Low'}],
+  study:[{t:'Read 10 pages of textbook',rule:'Weekdays',pri:'Med'}],
+  food:[{t:'Meal prep lunch',rule:'Weekly',pri:'Med'},{t:'Buy groceries',rule:'One-off',pri:'Low'}],
+  clean:[{t:'Vacuum + laundry',rule:'Weekly',pri:'Low'}],
+  sleep:[{t:'30 min wind-down, no screens',rule:'Daily',pri:'High'}],
+  move:[{t:'20 push-ups',rule:'Daily',pri:'Med'},{t:'10k steps',rule:'Daily',pri:'Low'}],
+};
+const SB_RULES = ['One-off','Daily','Weekdays','Weekly'];
+const SB_PRI = { High:'#DC2626', Med:'#D97706', Low:'#16A34A' };
+
+// Assignment form + task list (shared by phone sheet and iPad side panel)
+function SBAssign({ player, tasks, benched, onAdd, onToggleBench }) {
+  const [draft, setDraft] = React.useState('');
+  const [rule, setRule] = React.useState('One-off');
+  const [pri, setPri] = React.useState('Med');
+  const [done, setDone] = React.useState({});
+  const ref = React.useRef(null);
+  React.useEffect(() => { if (ref.current) ref.current.focus(); setDraft(''); }, [player.id]);
+  const sq = SB_SQUADS.find(s => s.key === player.squad);
+  function add() {
+    const t = draft.trim();
+    if (!t) return;
+    onAdd(player.id, { t, rule, pri });
+    setDraft('');
+    if (ref.current) ref.current.focus();
+  }
+  return (
+    <div>
+      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:12}}>
+        <Badge tone={player.squad}>{sq.name.toUpperCase()}</Badge>
+        <span style={{fontSize:11,color:'var(--text2)'}}>{tasks.length} {tasks.length===1?'task':'tasks'}</span>
+        <button onClick={onToggleBench} style={{marginLeft:'auto',whiteSpace:'nowrap',border:'1.5px solid '+(benched?sq.color:'var(--as)'),background:benched?sq.color:'transparent',color:benched?'#fff':'var(--text2)',borderRadius:8,padding:'3px 10px',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:'var(--font-body)'}}>{benched?'Benched — tap to return':'Bench player'}</button>
+      </div>
+      <div style={{background:sq.bg,border:'1.5px solid '+sq.bd,borderRadius:12,padding:12,marginBottom:14,opacity:benched?.45:1,pointerEvents:benched?'none':'auto'}}>
+        <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:sq.color,marginBottom:8}}>＋ Assign to {player.label}</div>
+        <div style={{display:'flex',gap:6,marginBottom:10}}>
+          <TextInput ref={ref} placeholder={'New task for '+player.label+'…'} value={draft}
+            onChange={(e)=>setDraft(e.target.value)} onKeyDown={(e)=>{ if(e.key==='Enter') add(); }} style={{flex:1}} />
+          <Button onClick={add} style={{background:sq.color}}>Assign</Button>
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
+          {SB_RULES.map(r => <Chip key={r} active={rule===r} onClick={()=>setRule(r)} style={rule===r?{background:sq.color,borderColor:sq.color,whiteSpace:'nowrap'}:{whiteSpace:'nowrap'}}>{r}</Chip>)}
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <span style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--text2)'}}>Priority</span>
+          {Object.keys(SB_PRI).map(p => <Chip key={p} active={pri===p} onClick={()=>setPri(p)} style={pri===p?{background:SB_PRI[p],borderColor:SB_PRI[p]}:{color:SB_PRI[p]}}>{p}</Chip>)}
+        </div>
+      </div>
+      {tasks.map((task,i) => (
+        <TaskCard key={i} title={task.t} meta={(task.rule!=='One-off'?task.rule+' · ':'')+task.pri}
+          priorityColor={SB_PRI[task.pri]} checked={!!done[i]} onCheck={(v)=>setDone(d=>({...d,[i]:v}))} />
+      ))}
+      {tasks.length===0 && <div style={{fontSize:11,color:'var(--text2)',opacity:.7,textAlign:'center',padding:'10px 0'}}>No tasks yet — assign the first above.</div>}
+    </div>
+  );
+}
+
+function SBTitle({ player }) {
+  const sq = SB_SQUADS.find(s => s.key === player.squad);
+  return (
+    <span style={{display:'inline-flex',alignItems:'center',gap:8}}>
+      <span style={{width:30,height:30,borderRadius:'50%',background:sq.color,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:15}}>{player.icon}</span>
+      {player.label}
+    </span>
+  );
+}
+
+// Player marker — logo avatar with squad ring, count badge, name plate (wraps in its squad line)
+function SBMarker({ player, count, benched, active, onClick }) {
+  const sq = SB_SQUADS.find(s => s.key === player.squad);
+  return (
+    <button onClick={onClick} style={{
+      display:'flex',flexDirection:'column',alignItems:'center',gap:4,border:'none',background:'transparent',
+      cursor:'pointer',fontFamily:'var(--font-body)',padding:0,opacity:benched?.55:1,filter:benched?'grayscale(.8)':'none',
+      transition:'opacity .3s',width:'100%',minWidth:0,
+    }}>
+      <span style={{position:'relative',display:'inline-flex'}}>
+        <span style={{width:40,height:40,borderRadius:'50%',background:'#fff',border:'2.5px solid '+sq.color,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:18,boxShadow:active?'0 0 0 4px '+sq.bd+', 0 4px 14px rgba(0,0,0,.25)':'0 3px 10px rgba(0,0,0,.22)'}}>{player.icon}</span>
+        {benched
+          ? <span style={{position:'absolute',top:-4,right:-8,fontSize:7,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:'#fff',background:'#57534E',borderRadius:6,padding:'2px 5px'}}>Bench</span>
+          : <span style={{position:'absolute',top:-3,right:-5,minWidth:16,height:16,borderRadius:8,background:sq.color,color:'#fff',fontSize:9,fontWeight:700,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0 4px',border:'2px solid #fff'}}>{count}</span>}
+      </span>
+      <span style={{fontSize:9,fontWeight:700,color:'#fff',background:'rgba(0,0,0,.38)',borderRadius:7,padding:'1px 7px',letterSpacing:'.3px',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.label}</span>
+    </button>
+  );
+}
+
+function SquadBoard({ open, onClose, phase, wide }) {
+  const [players, setPlayers] = React.useState(SB_PLAYERS);
+  const [store, setStore] = React.useState(SB_SEED);
+  const [benched, setBenched] = React.useState({});
+  const [openId, setOpenId] = React.useState(null);
+  if (!open) return null;
+  function addTask(id, task) { setStore(p => ({ ...p, [id]: [...(p[id]||[]), task] })); }
+  function addPlayer(squad) {
+    const name = window.prompt('Player name?');
+    if (!name || !name.trim()) return;
+    const sq = SB_SQUADS.find(s=>s.key===squad);
+    const id = 'p' + Date.now();
+    setPlayers(p => [...p, { id, label:name.trim(), icon:sq.icon, squad }]);
+    setOpenId(id);
+  }
+  const openPlayer = players.find(p=>p.id===openId);
+  const pitch = (
+    <PitchField minHeight={wide?500:430} style={{width:'100%',flex:1,maxWidth:wide?640:undefined,margin:'0 auto'}}>
+      <div style={{position:'relative',zIndex:5,display:'grid',gridTemplateColumns:'repeat(3,1fr)',minHeight:wide?500:430,padding:'10px 4px'}}>
+        {SB_SQUADS.map((sq,ci) => {
+          const line = players.filter(p=>p.squad===sq.key);
+          return (
+            <div key={sq.key} style={{display:'flex',flexDirection:'column',gap:10,padding:'6px 4px',alignItems:'center',borderRight:ci<2?'1.5px dashed rgba(255,255,255,.3)':'none'}}>
+              <div style={{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap',justifyContent:'center'}}>
+                <span style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:'#fff',background:sq.color,borderRadius:7,padding:'2px 9px',whiteSpace:'nowrap'}}>{sq.icon} {sq.name} · {line.length}{phase===sq.key?' ●':''}</span>
+                <button onClick={()=>addPlayer(sq.key)} title={'Add player to '+sq.name} style={{border:'none',background:'rgba(255,255,255,.85)',color:sq.color,width:20,height:20,borderRadius:'50%',fontSize:13,fontWeight:700,cursor:'pointer',lineHeight:1,flexShrink:0}}>+</button>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:'12px 4px',justifyItems:'center',width:'100%'}}>
+                {line.map(p => (
+                  <SBMarker key={p.id} player={p} count={(store[p.id]||[]).length} benched={!!benched[p.id]}
+                    active={openId===p.id} onClick={()=>setOpenId(p.id)} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </PitchField>
+  );
+  const legend = (
+    <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+      {SB_SQUADS.map(sq => (
+        <span key={sq.key} style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.7px',color:sq.color}}>
+          <span style={{width:9,height:9,borderRadius:'50%',background:sq.color,display:'inline-block'}}></span>
+          {sq.name}{phase===sq.key ? ' · on the ball' : ''}
+        </span>
+      ))}
+    </div>
+  );
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:300,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'auto'}} data-screen-label="Squad Board">
+      <div style={{display:'flex',alignItems:'center',gap:8,padding:'16px 16px 8px'}}>
+        <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:700,flex:1}}>Squad Board</div>
+        <span style={{fontSize:10,color:'var(--text2)'}}>Tap a player to assign</span>
+        <button onClick={onClose} aria-label="Close" style={{border:'none',background:'var(--as)',width:30,height:30,borderRadius:9,fontSize:14,cursor:'pointer',color:'var(--text)'}}>×</button>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:8,padding:'0 16px 16px',flex:1,alignItems:'center'}}>
+        <div style={{width:'100%',maxWidth:wide?640:undefined,display:'flex',flexDirection:'column',gap:8,flex:1}}>
+        {legend}
+        {pitch}
+        </div>
+      </div>
+      {openPlayer && (
+        <OverlayPanel maxWidth={430} onClose={()=>setOpenId(null)} title={<SBTitle player={openPlayer} />}>
+          <SBAssign player={openPlayer} tasks={store[openPlayer.id]||[]} benched={!!benched[openPlayer.id]}
+            onAdd={addTask} onToggleBench={()=>setBenched(b=>({...b,[openPlayer.id]:!b[openPlayer.id]}))} />
+        </OverlayPanel>
+      )}
+    </div>
+  );
+}
+
+Object.assign(window, { SquadBoard });

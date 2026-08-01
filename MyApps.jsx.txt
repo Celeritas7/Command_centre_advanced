@@ -1,0 +1,115 @@
+// My Apps — redesigned app-links portal: launch-first icon grid + edit mode
+const { TextInput, Chip } = window.CommandCentreDesignSystem_63bc0b;
+
+const MA_SEED = [
+  { id:'g1', name:'General Purpose', color:'#3B5BDB', sub:null, apps:[
+    { id:'a1', name:'Calendar', icon:'📅', on:false },
+    { id:'a2', name:'Cost Management', icon:'💰', on:true },
+    { id:'a3', name:'Food department', icon:'🍱', on:true },
+    { id:'a4', name:'Commonplace', icon:'📓', on:true },
+    { id:'a5', name:'Roadmap', icon:'🗺️', on:true },
+    { id:'a6', name:'Weekly_focus', icon:'🎯', on:true },
+    { id:'a7', name:'writing_test', icon:'✍️', on:true },
+    { id:'a8', name:'Scriptura_app', icon:'📜', on:true },
+  ]},
+  { id:'g2', name:'Language Study', color:'#38A169', sub:'JAPANESE', apps:[
+    { id:'b1', name:'JP Grammar', icon:'📈', on:true },
+    { id:'b2', name:'JLPT study app', icon:'🈴', on:true },
+  ]},
+  { id:'g3', name:'Language Study', color:'#38A169', sub:'CHINESE', apps:[
+    { id:'c1', name:'Chinese study app', icon:'🀄', on:true },
+  ]},
+];
+
+function MATile({ app, edit, groupColor, onToggle, onRename, onRemove, onLaunch }) {
+  return (
+    <div style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:5,minWidth:0}}>
+      <button onClick={edit?onToggle:onLaunch} title={edit?(app.on?'Tap to deactivate':'Tap to activate'):('Open '+app.name)} style={{
+        width:54,height:54,borderRadius:16,border:'1.5px solid '+(app.on?groupColor+'33':'var(--as)'),cursor:'pointer',
+        background:app.on?'var(--card)':'var(--as)',fontSize:24,display:'flex',alignItems:'center',justifyContent:'center',
+        boxShadow:app.on?'0 2px 8px rgba(0,0,0,.07)':'none',opacity:app.on?1:.45,filter:app.on?'none':'grayscale(.8)',
+        transition:'all .2s',position:'relative',
+      }}>
+        {app.icon}
+        <span style={{position:'absolute',bottom:4,right:4,width:8,height:8,borderRadius:'50%',background:app.on?'#16A34A':'#A8A29E',border:'1.5px solid #fff'}}></span>
+      </button>
+      {edit && (
+        <button onClick={onRemove} aria-label="Remove" style={{position:'absolute',top:-6,left:-4,width:18,height:18,borderRadius:'50%',border:'none',background:'#57534E',color:'#fff',fontSize:11,cursor:'pointer',lineHeight:1,zIndex:2}}>×</button>
+      )}
+      <button onClick={edit?onRename:onLaunch} style={{border:'none',background:'transparent',padding:0,cursor:'pointer',fontFamily:'var(--font-body)',fontSize:9,fontWeight:600,color:app.on?'var(--text)':'var(--text2)',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textDecoration:edit?'underline dotted':'none'}}>{app.name}</button>
+    </div>
+  );
+}
+
+function MyApps({ open, onClose }) {
+  const [groups, setGroups] = React.useState(MA_SEED);
+  const [edit, setEdit] = React.useState(false);
+  const [q, setQ] = React.useState('');
+  const [filter, setFilter] = React.useState('all');
+  if (!open) return null;
+  const total = groups.reduce((n,g)=>n+g.apps.length,0);
+  const active = groups.reduce((n,g)=>n+g.apps.filter(a=>a.on).length,0);
+  function mutate(gid, fn) { setGroups(gs => gs.map(g => g.id===gid ? fn(g) : g)); }
+  function addApp(gid) {
+    const name = window.prompt('App name?');
+    if (!name || !name.trim()) return;
+    mutate(gid, g => ({ ...g, apps:[...g.apps, { id:'n'+Date.now(), name:name.trim(), icon:'🔗', on:true }] }));
+  }
+  function addGroup() {
+    const name = window.prompt('Group name?');
+    if (!name || !name.trim()) return;
+    setGroups(gs => [...gs, { id:'g'+Date.now(), name:name.trim(), color:'#E8722A', sub:null, apps:[] }]);
+  }
+  const ql = q.trim().toLowerCase();
+  return (
+    <div style={{position:'absolute',inset:0,zIndex:300,background:'var(--bg)',display:'flex',flexDirection:'column',overflow:'auto'}} data-screen-label="My Apps">
+      <div style={{position:'sticky',top:0,zIndex:10,background:'var(--bg)',padding:'16px 16px 10px',display:'flex',flexDirection:'column',gap:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:700}}>My Apps</div>
+          <span style={{fontSize:10,fontWeight:700,color:'var(--accent)',background:'var(--as)',borderRadius:8,padding:'2px 8px'}}>{active} / {total} active</span>
+          <button onClick={()=>setEdit(e=>!e)} style={{marginLeft:'auto',border:'1.5px solid '+(edit?'var(--accent)':'var(--as)'),background:edit?'var(--accent)':'var(--card)',color:edit?'#fff':'var(--text)',borderRadius:9,padding:'5px 14px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'var(--font-body)',whiteSpace:'nowrap'}}>{edit?'✓ Done':'✎ Edit'}</button>
+          <button onClick={onClose} aria-label="Close" style={{border:'none',background:'var(--as)',width:30,height:30,borderRadius:9,fontSize:14,cursor:'pointer',color:'var(--text)',flexShrink:0}}>×</button>
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <TextInput placeholder="Search apps…" value={q} onChange={(e)=>setQ(e.target.value)} style={{flex:1}} />
+          <Chip active={filter==='all'} onClick={()=>setFilter('all')}>All</Chip>
+          <Chip active={filter==='on'} onClick={()=>setFilter('on')} style={filter==='on'?{background:'#16A34A',borderColor:'#16A34A'}:{}}>Active</Chip>
+          <Chip active={filter==='off'} onClick={()=>setFilter('off')}>Off</Chip>
+        </div>
+      </div>
+      <div style={{padding:'0 16px 20px',display:'flex',flexDirection:'column',gap:16}}>
+        {groups.map(g => {
+          const apps = g.apps.filter(a =>
+            (filter==='all' || (filter==='on')===a.on) &&
+            (!ql || a.name.toLowerCase().includes(ql)));
+          if (!edit && apps.length===0 && ql) return null;
+          return (
+            <div key={g.id}>
+              <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:9,borderBottom:'2px solid '+g.color+'33',paddingBottom:5}}>
+                <span style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'1px',color:g.color}}>{g.name}</span>
+                {g.sub && <span style={{fontSize:8,fontWeight:700,letterSpacing:'.6px',color:g.color,border:'1px solid '+g.color+'44',borderRadius:6,padding:'1px 6px'}}>{g.sub}</span>}
+                <span style={{fontSize:9,color:'var(--text2)'}}>{g.apps.filter(a=>a.on).length}/{g.apps.length}</span>
+                {edit && <button onClick={()=>addApp(g.id)} style={{marginLeft:'auto',border:'1px dashed '+g.color+'66',background:'transparent',color:g.color,borderRadius:7,padding:'2px 9px',fontSize:9,fontWeight:700,cursor:'pointer',fontFamily:'var(--font-body)'}}>＋ App</button>}
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(68px,1fr))',gap:'12px 6px'}}>
+                {apps.map(a => (
+                  <MATile key={a.id} app={a} edit={edit} groupColor={g.color}
+                    onLaunch={()=>{}}
+                    onToggle={()=>mutate(g.id, gr=>({...gr, apps:gr.apps.map(x=>x.id===a.id?{...x,on:!x.on}:x)}))}
+                    onRename={()=>{ const n=window.prompt('Rename app', a.name); if(n&&n.trim()) mutate(g.id, gr=>({...gr, apps:gr.apps.map(x=>x.id===a.id?{...x,name:n.trim()}:x)})); }}
+                    onRemove={()=>mutate(g.id, gr=>({...gr, apps:gr.apps.filter(x=>x.id!==a.id)}))} />
+                ))}
+                {apps.length===0 && <div style={{gridColumn:'1/-1',fontSize:10,color:'var(--text2)',opacity:.7,padding:'6px 0'}}>{ql?'No matches in this group.':'No apps here yet.'}</div>}
+              </div>
+            </div>
+          );
+        })}
+        {edit && (
+          <button onClick={addGroup} style={{border:'1.5px dashed var(--as)',background:'transparent',color:'var(--accent)',borderRadius:12,padding:'10px 0',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'var(--font-body)'}}>＋ New group</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { MyApps });

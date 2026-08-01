@@ -1,0 +1,8 @@
+# Intent file for the project status tracker.
+# Edit these when your INTENT changes (rarely). Freshness/stack are auto-detected, don't put them here.
+purpose: "Personal productivity hub: tasks, habits, notes, finances"
+status: active        # active | maintenance | paused | abandoned
+priority: high      # high | medium | low
+# supersedes:
+# superseded_by:
+notes: ""
