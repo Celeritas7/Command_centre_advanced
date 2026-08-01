@@ -1,0 +1,338 @@
+<!-- @dsCard group="Command Centre App" viewport="520x820" name="Day Plans — Redesign" subtitle="Manager page fix: collapsed interrupts, legible timeline, preset confirm, empty state, overlap warnings" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Day Plans — Redesign</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d0d;--card:#161616;--card2:#1c1c1c;--amber:#d48900;--amberBg:rgba(212,137,0,.08);--amberBd:rgba(212,137,0,.15);--text:#e8e0d4;--text2:#999;--text3:#666;--red:#e24b4a;--green:#38a169;--atkC:#e2722a;--midC:#3b82f6;--defC:#a855f7}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:20px 14px}
+.main{width:100%;max-width:640px}
+a{color:var(--amber)}a:hover{color:var(--text)}
+.page-hdr{margin-bottom:20px}
+.page-title{font-family:'Fraunces',serif;font-size:22px;font-weight:700}
+.page-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.mgr-card{background:var(--card);border:1px solid var(--amberBd);border-radius:12px;padding:16px;margin-bottom:12px}
+.mgr-card-hd{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.mgr-card-sub{font-size:10px;color:var(--text2);margin-bottom:10px;line-height:1.5}
+.mgr-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mgr-label{font-size:10px;color:var(--text2);min-width:80px}
+.mgr-sel,.mgr-inp{background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text);font-family:inherit;outline:none}
+.mgr-sel{cursor:pointer}
+.mgr-toggle{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--amberBd);background:var(--card2);color:var(--text2);font-family:inherit;transition:all .15s}
+.mgr-toggle.on{background:var(--amber);color:var(--bg);border-color:var(--amber)}
+.mgr-btn{border:none;padding:7px 14px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.mgr-btn-primary{background:var(--amber);color:var(--bg)}
+.mgr-btn-danger{background:rgba(226,75,74,.12);color:var(--red)}
+.mgr-btn-ghost{background:none;color:var(--amber);border:1px dashed var(--amberBd)}
+/* Collapsed interrupt rows */
+.int-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--amberBd);border-left-width:3px;border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:border-color .15s;min-height:44px}
+.int-row:hover{border-color:var(--amber)}
+.int-row.open{border-color:var(--amber);border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
+.int-time{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--amber);min-width:50px}
+.int-name{font-size:12px;font-weight:700;flex:1;display:flex;align-items:center;gap:6px}
+.int-meta{font-size:10px;color:var(--text2)}
+.lock-badge{font-size:9px;padding:3px 8px;border-radius:5px;font-weight:700;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.lock-badge.hard{background:rgba(226,75,74,.15);color:var(--red)}
+.lock-badge.soft{background:var(--amberBg);color:var(--amber)}
+.int-editor{background:var(--card);border:1px solid var(--amber);border-top:none;border-radius:0 0 10px 10px;padding:12px;margin-bottom:6px}
+.chev{font-size:9px;color:var(--text3);transition:transform .15s}
+.int-row.open .chev{transform:rotate(180deg)}
+/* Timeline */
+.tl-wrap{position:relative;overflow-x:auto;border:1px solid var(--amberBd);border-radius:10px;background:var(--card);margin:12px 0 8px}
+.tl-body{position:relative;min-width:640px}
+.tl-header{display:flex;border-bottom:1px solid var(--amberBd)}
+.tl-hours{display:flex;flex:1}
+.tl-hour{min-width:32px;flex:1;text-align:center;font-size:10px;color:var(--text2);padding:6px 0;font-family:'JetBrains Mono',monospace;border-left:1px solid rgba(255,255,255,.04)}
+.tl-hour.now{color:var(--amber);font-weight:700}
+.tl-label{min-width:60px;display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:10px;font-weight:700;border-right:1px solid rgba(255,255,255,.05)}
+.tl-row{display:flex;min-height:34px;border-bottom:1px solid rgba(255,255,255,.03)}
+.tl-row:last-child{border-bottom:none}
+.tl-track{flex:1;position:relative}
+.tl-bar{position:absolute;top:4px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace;overflow:hidden;white-space:nowrap}
+.tl-bar.atk{background:rgba(226,114,42,.35);border:1px solid rgba(226,114,42,.5);color:#efb289}
+.tl-bar.mid{background:rgba(59,130,246,.25);border:1px solid rgba(59,130,246,.4);color:#9cc3f7}
+.tl-bar.def{background:rgba(168,85,247,.25);border:1px solid rgba(168,85,247,.4);color:#cdaaf5}
+.tl-bar.clash{border:1.5px solid var(--red);box-shadow:0 0 0 1px rgba(226,75,74,.3)}
+.tl-tick{position:absolute;top:8px;width:6px;height:18px;border-radius:3px}
+.tl-tick.atk{background:var(--atkC)}.tl-tick.mid{background:var(--midC)}.tl-tick.def{background:var(--defC)}
+.tl-tick.clash{outline:1.5px solid var(--red)}
+.tl-now{position:absolute;top:0;bottom:0;width:2px;background:var(--amber);z-index:3;pointer-events:none;opacity:.8}
+.clash-note{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--red);background:rgba(226,75,74,.08);border:1px solid rgba(226,75,74,.25);border-radius:8px;padding:6px 10px;margin-bottom:8px}
+.clash-card{background:var(--card);border:1px solid rgba(226,75,74,.35);border-radius:10px;padding:12px;margin-bottom:12px}
+.clash-cols{display:flex;gap:10px;flex-wrap:wrap}
+.clash-col{flex:1;min-width:180px;background:var(--card2);border-radius:8px;padding:10px;border-top:2px solid var(--midC)}
+.clash-task{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;color:var(--text)}
+/* Confirm sheet */
+.confirm-wrap{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.confirm-box{background:var(--card);border:1px solid var(--amberBd);border-radius:14px;padding:20px;max-width:340px;width:100%}
+.undo-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--amberBd);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;font-size:11px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+</style>
+</head>
+<body>
+<div class="main" id="content"></div>
+<script>
+// ===== Sample data (mirrors manager.html shapes) =====
+var SQUADS=[
+  {name:'App Gen',ico:'💻',type:'attacker'},{name:'Job Hunt',ico:'🎯',type:'attacker'},
+  {name:'Exercise',ico:'💪',type:'midfielder'},{name:'Food',ico:'🍳',type:'midfielder'},{name:'Health',ico:'🩺',type:'midfielder'},
+  {name:'Cleaning',ico:'🧹',type:'defender'},{name:'Admin',ico:'📋',type:'defender'}
+];
+function findSq(n){for(var i=0;i<SQUADS.length;i++)if(SQUADS[i].name===n)return SQUADS[i];return null}
+function sqCls(sq){return sq?(sq.type==='attacker'?'atk':sq.type==='midfielder'?'mid':'def'):'mid'}
+var dayPlans={
+  weekday:{base:'App Gen',location:'home',interrupts:[
+    {id:'i1',time:'06:00',squad:'Exercise',duration:15,hardLock:true,tasks:[{ico:'💪',text:'Quick workout'},{ico:'🧘',text:'Stretch'}]},
+    {id:'i2',time:'07:00',squad:'Food',duration:20,hardLock:true,tasks:[{ico:'🍳',text:'Breakfast'},{ico:'☕',text:'Coffee'}]},
+    {id:'i3',time:'12:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍱',text:'Lunch'}]},
+    {id:'i4',time:'12:15',squad:'Health',duration:10,hardLock:false,tasks:[{ico:'👀',text:'Rest eyes'}]},
+    {id:'i5',time:'19:00',squad:'Food',duration:30,hardLock:true,tasks:[{ico:'🍳',text:'Dinner'}]},
+    {id:'i6',time:'21:00',squad:'Cleaning',duration:15,hardLock:false,tasks:[{ico:'🧽',text:'Wipe surfaces'},{ico:'🍽️',text:'Dishes'}]}
+  ]},
+  weekend:{base:'',location:'home',interrupts:[]}
+};
+var activeDayType='weekday';
+var openInt=null; // id of the one expanded editor
+var pendingPreset=null;
+var undoSnapshot=null,undoTimer=null;
+function saveDayPlans(){/* stub: sb upsert in real app */}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+// Overlap detection: [start,end) minute ranges
+function findClashes(ints){
+  var ids={};
+  for(var a=0;a<ints.length;a++)for(var b=a+1;b<ints.length;b++){
+    var s1=toMin(ints[a].time),e1=s1+ints[a].duration,s2=toMin(ints[b].time),e2=s2+ints[b].duration;
+    if(s1<e2&&s2<e1){ids[ints[a].id]=true;ids[ints[b].id]=true}
+  }
+  return ids;
+}
+function toMin(t){var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]||0)}
+function fmtMin(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+// Group overlapping interrupts into connected clusters
+function clashGroups(ints){
+  var groups=[];
+  ints.forEach(function(x){
+    var s=toMin(x.time),e=s+x.duration,placed=false;
+    for(var g=0;g<groups.length;g++){
+      if(groups[g].some(function(y){var s2=toMin(y.time),e2=s2+y.duration;return s<e2&&s2<e})){groups[g].push(x);placed=true;break}
+    }
+    if(!placed)groups.push([x]);
+  });
+  return groups.filter(function(g){return g.length>1});
+}
+
+var PRESETS={
+  deepWork:{label:'💻 Deep Work Day',base:'App Gen'},
+  balanced:{label:'⚖️ Balanced Day',base:'App Gen'},
+  recovery:{label:'🧘 Recovery Day',base:'Health'},
+  office:{label:'🏢 Office Day',base:'Job Hunt'}
+};
+
+function render(){
+  var plan=dayPlans[activeDayType]||{base:'',location:'home',interrupts:[]};
+  var ints=(plan.interrupts||[]).slice().sort(function(a,b){return a.time.localeCompare(b.time)});
+  var clashes=findClashes(ints);
+  var clashCount=Object.keys(clashes).length;
+  var baseSq=findSq(plan.base);
+  var isEmpty=!ints.length;
+  var h='<div class="page-hdr"><div class="page-title">📅 Day Plans</div><div class="page-sub">Set a base activity for the whole day + scheduled interrupts that block it</div></div>';
+
+  // Tabs with counts
+  h+='<div style="display:flex;gap:4px;margin-bottom:16px">';
+  [['weekday','📅 Weekday'],['weekend','🌴 Weekend']].forEach(function(d){
+    var n=(dayPlans[d[0]].interrupts||[]).length;
+    h+='<button class="mgr-toggle '+(activeDayType===d[0]?'on':'')+'" style="flex:1;justify-content:center;padding:9px;font-size:12px" onclick="activeDayType=\''+d[0]+'\';openInt=null;render()">'+d[1]+(n?' · '+n:'')+'</button>';
+  });
+  h+='</div>';
+
+  // Base activity
+  h+='<div class="mgr-card" style="border-color:var(--amber)">';
+  h+='<div class="mgr-card-hd"><span style="font-size:18px">'+(baseSq?baseSq.ico:'🎯')+'</span>Base Activity<span style="margin-left:auto;font-size:9px;padding:2px 8px;border-radius:6px;background:var(--amber);color:var(--bg)">ALL DAY</span></div>';
+  h+='<div class="mgr-card-sub">This squad owns the entire day and resumes automatically after each interrupt.</div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Squad</span><select class="mgr-sel" style="flex:1" onchange="dayPlans[activeDayType].base=this.value;saveDayPlans();render()"><option value="">— None (schedule-driven) —</option>';
+  SQUADS.forEach(function(s){h+='<option value="'+esc(s.name)+'" '+(plan.base===s.name?'selected':'')+'>'+s.ico+' '+esc(s.name)+'</option>'});
+  h+='</select></div>';
+  h+='<div class="mgr-row"><span class="mgr-label">Location</span><div style="display:flex;gap:4px">';
+  [['home','🏠 Home'],['office','🏢 Office'],['outside','🌳 Outside']].forEach(function(l){
+    h+='<button class="mgr-toggle '+(plan.location===l[0]?'on':'')+'" onclick="dayPlans[activeDayType].location=\''+l[0]+'\';saveDayPlans();render()">'+l[1]+'</button>';
+  });
+  h+='</div></div></div>';
+
+  if(isEmpty){
+    // Empty state: presets first, no timeline
+    h+='<div class="mgr-card" style="text-align:center;padding:28px 16px">';
+    h+='<div style="font-size:26px;margin-bottom:8px">📅</div>';
+    h+='<div style="font-size:13px;font-weight:700;margin-bottom:4px">No interrupts yet</div>';
+    h+='<div style="font-size:11px;color:var(--text2);margin-bottom:16px;line-height:1.5">Start from a preset — you can edit every interrupt after applying.</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">';
+    Object.keys(PRESETS).forEach(function(k){h+='<button class="mgr-btn mgr-btn-primary" onclick="applyPreset(\''+k+'\')">'+PRESETS[k].label+'</button>'});
+    h+='</div>';
+    h+='<div style="margin-top:14px"><button class="mgr-btn mgr-btn-ghost" onclick="addInterrupt()">+ Or add a single interrupt</button></div>';
+    h+='</div>';
+  }else{
+    h+=renderTimeline(plan,ints,clashes);
+    if(clashCount){
+      h+='<div class="clash-note">⚠️ '+clashCount+' interrupts overlap — all tasks in the clash are shown below so you can choose what to do.</div>';
+      clashGroups(ints).forEach(function(g){
+        var start=Math.min.apply(null,g.map(function(x){return toMin(x.time)}));
+        var end=Math.max.apply(null,g.map(function(x){return toMin(x.time)+x.duration}));
+        // HARD locks first — they take priority
+        var ordered=g.slice().sort(function(a,b){return (b.hardLock?1:0)-(a.hardLock?1:0)||a.time.localeCompare(b.time)});
+        h+='<div class="clash-card">';
+        h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;color:var(--red)">'+fmtMin(start)+'–'+fmtMin(end)+'</span><span style="font-size:10px;color:var(--text2)">'+g.length+' interrupts compete for this window — hard locks rank first</span></div>';
+        h+='<div class="clash-cols">';
+        ordered.forEach(function(x,oi){
+          var sq=findSq(x.squad);var cls=sqCls(sq);
+          var bc=cls==='atk'?'var(--atkC)':cls==='def'?'var(--defC)':'var(--midC)';
+          h+='<div class="clash-col" style="border-top-color:'+bc+'">';
+          h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:14px">'+(sq?sq.ico:'❓')+'</span><span style="font-size:12px;font-weight:700;flex:1">'+esc(x.squad)+'</span><span class="lock-badge '+(x.hardLock?'hard':'soft')+'" style="cursor:default">'+(x.hardLock?'🔴 P1 · HARD':'🟡 P'+(oi+1)+' · SOFT')+'</span></div>';
+          h+='<div style="font-size:9px;color:var(--text2);font-family:JetBrains Mono,monospace;margin-bottom:6px">'+x.time+' · '+x.duration+'min</div>';
+          (x.tasks||[]).forEach(function(t){h+='<div class="clash-task"><span>'+esc(t.ico)+'</span><span>'+esc(t.text)+'</span></div>'});
+          if(!(x.tasks||[]).length)h+='<div style="font-size:10px;color:var(--text3)">No checklist items</div>';
+          h+='</div>';
+        });
+        h+='</div></div>';
+      });
+    }
+
+    // Interrupts: collapsed rows, one editor open at a time
+    h+='<div style="display:flex;align-items:center;gap:8px;margin:18px 0 10px"><span style="font-family:Fraunces,serif;font-size:16px;font-weight:700">Scheduled Interrupts</span><span style="font-size:10px;color:var(--text2)">'+ints.length+' configured</span></div>';
+    ints.forEach(function(intr){
+      var sq=findSq(intr.squad);
+      var cls=sqCls(sq);
+      var bc=cls==='atk'?'var(--atkC)':cls==='def'?'var(--defC)':'var(--midC)';
+      var idx=dayPlans[activeDayType].interrupts.indexOf(intr);
+      var open=openInt===intr.id;
+      h+='<div class="int-row'+(open?' open':'')+'" style="border-left-color:'+bc+'" onclick="toggleInt(\''+intr.id+'\')">';
+      h+='<span class="int-time">'+intr.time+'</span>';
+      h+='<span class="int-name">'+(sq?sq.ico:'❓')+' '+esc(intr.squad||'Unset')+(clashes[intr.id]?' <span style="font-size:10px" title="Overlaps another interrupt">⚠️</span>':'')+'</span>';
+      h+='<span class="int-meta">'+intr.duration+'m · '+(intr.tasks||[]).length+' tasks</span>';
+      h+='<button class="lock-badge '+(intr.hardLock?'hard':'soft')+'" title="Tap to toggle hard/soft lock" onclick="event.stopPropagation();toggleLock('+idx+')">'+(intr.hardLock?'🔴 HARD':'🟡 SOFT')+'</button>';
+      h+='<span class="chev">▼</span>';
+      h+='</div>';
+      if(open)h+=renderEditor(intr,idx);
+    });
+    h+='<div class="mgr-card" style="border-style:dashed;text-align:center;cursor:pointer;padding:14px;margin-top:6px" onclick="addInterrupt()"><span style="font-size:11px;color:var(--text2)">+ Add interrupt</span></div>';
+
+    // Presets (with confirm)
+    h+='<div class="mgr-card" style="margin-top:12px"><div class="mgr-card-hd">🎯 Quick Presets</div><div class="mgr-card-sub">Applying a preset replaces this day\u2019s current plan — you\u2019ll be asked to confirm.</div><div style="display:flex;gap:6px;flex-wrap:wrap">';
+    Object.keys(PRESETS).forEach(function(k){h+='<button class="mgr-btn mgr-btn-primary" onclick="confirmPreset(\''+k+'\')">'+PRESETS[k].label+'</button>'});
+    h+='</div></div>';
+  }
+
+  // Confirm dialog
+  if(pendingPreset){
+    h+='<div class="confirm-wrap" onclick="pendingPreset=null;render()"><div class="confirm-box" onclick="event.stopPropagation()">';
+    h+='<div style="font-size:14px;font-weight:700;margin-bottom:6px">Replace '+activeDayType+' plan?</div>';
+    h+='<div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:14px">'+PRESETS[pendingPreset].label+' will replace the base activity and all '+ints.length+' interrupts. You can undo right after.</div>';
+    h+='<div style="display:flex;gap:8px;justify-content:flex-end"><button class="mgr-btn" style="background:var(--card2);color:var(--text2)" onclick="pendingPreset=null;render()">Cancel</button><button class="mgr-btn mgr-btn-primary" onclick="applyPreset(pendingPreset)">Apply preset</button></div>';
+    h+='</div></div>';
+  }
+  // Undo toast
+  if(undoSnapshot){
+    h+='<div class="undo-toast"><span>Preset applied</span><button class="mgr-btn" style="background:var(--amber);color:var(--bg);padding:5px 12px" onclick="undoPreset()">Undo</button></div>';
+  }
+  document.getElementById('content').innerHTML=h;
+}
+
+function renderTimeline(plan,ints,clashes){
+  var baseSq=findSq(plan.base);
+  var h='<div class="tl-wrap"><div class="tl-body">';
+  h+='<div class="tl-header"><div class="tl-label"></div><div class="tl-hours">';
+  var nowH=new Date().getHours();
+  for(var i=5;i<=23;i++)h+='<div class="tl-hour'+(i===nowH?' now':'')+'">'+String(i).padStart(2,'0')+'</div>';
+  h+='</div></div>';
+  // Base row
+  h+='<div class="tl-row"><div class="tl-label">BASE</div><div class="tl-track">';
+  if(plan.base)h+='<div class="tl-bar '+sqCls(baseSq)+'" style="left:0%;width:100%;opacity:.25">'+(baseSq?baseSq.ico:'')+' '+esc(plan.base)+' (all day)</div>';
+  ints.forEach(function(x){h+=tlBar(x,clashes)});
+  h+='</div></div>';
+  // One row per unique squad
+  var seen={};
+  ints.forEach(function(intr){
+    if(seen[intr.squad])return;seen[intr.squad]=true;
+    var sq=findSq(intr.squad);
+    h+='<div class="tl-row"><div class="tl-label"><span>'+(sq?sq.ico:'')+'</span><span style="font-size:9px;font-weight:600;color:var(--text2)">'+esc(intr.squad)+'</span></div><div class="tl-track">';
+    ints.filter(function(x){return x.squad===intr.squad}).forEach(function(x){h+=tlBar(x,clashes)});
+    h+='</div></div>';
+  });
+  // Single now-line overlay across the whole body
+  var nH=new Date().getHours(),nM=new Date().getMinutes();
+  if(nH>=5&&nH<=23)h+='<div class="tl-now" style="left:calc(60px + (100% - 60px) * '+(((nH-5+nM/60)/18).toFixed(4))+')"></div>';
+  h+='</div></div>';
+  return h;
+}
+
+// Bars under ~30px equivalent render as a tick; full info stays in title
+function tlBar(x,clashes){
+  var p=x.time.split(':');var hr=parseInt(p[0]),mn=parseInt(p[1]||0);
+  var sp=((hr-5+mn/60)/18)*100;
+  var wp=(x.duration/60/18)*100;
+  var sq=findSq(x.squad);var cls=sqCls(sq);
+  var clash=clashes[x.id]?' clash':'';
+  var tip=esc(x.squad)+' at '+x.time+' · '+x.duration+'min · '+(x.hardLock?'HARD':'soft');
+  if(wp<4.7)return '<div class="tl-tick '+cls+clash+'" style="left:'+sp.toFixed(2)+'%" title="'+tip+'"></div>'; // ~30px on a 640px track
+  return '<div class="tl-bar '+cls+clash+'" style="left:'+sp.toFixed(2)+'%;width:'+wp.toFixed(2)+'%" title="'+tip+'">'+x.time+'</div>';
+}
+
+function renderEditor(intr,i){
+  var h='<div class="int-editor" onclick="event.stopPropagation()">';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">';
+  h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:34px">Time</span><input class="mgr-inp" type="time" value="'+intr.time+'" onchange="upd('+i+',\'time\',this.value)"></div>';
+  h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:40px">Squad</span><select class="mgr-sel" onchange="upd('+i+',\'squad\',this.value)">';
+  SQUADS.forEach(function(s){h+='<option value="'+esc(s.name)+'" '+(intr.squad===s.name?'selected':'')+'>'+s.ico+' '+esc(s.name)+'</option>'});
+  h+='</select></div>';
+  h+='<div class="mgr-row" style="margin:0"><span class="mgr-label" style="min-width:28px">Dur</span><select class="mgr-sel" onchange="upd('+i+',\'duration\',parseInt(this.value))">';
+  [5,10,15,20,30,45,60,90,120].forEach(function(m){h+='<option value="'+m+'" '+(intr.duration===m?'selected':'')+'>'+m+'m</option>'});
+  h+='</select></div>';
+  h+='</div>';
+  h+='<div style="font-size:10px;font-weight:600;color:var(--text2);margin-bottom:6px">Checklist ('+(intr.tasks||[]).length+')</div>';
+  (intr.tasks||[]).forEach(function(t,ti){
+    h+='<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px"><input class="mgr-inp" style="width:30px;text-align:center" value="'+esc(t.ico)+'" onchange="updTask('+i+','+ti+',\'ico\',this.value)"><input class="mgr-inp" style="flex:1" value="'+esc(t.text)+'" onchange="updTask('+i+','+ti+',\'text\',this.value)"><button class="mgr-btn mgr-btn-danger" style="padding:4px 8px;font-size:10px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.splice('+ti+',1);saveDayPlans();render()">✕</button></div>';
+  });
+  h+='<div style="display:flex;gap:4px;margin-top:8px"><button class="mgr-btn mgr-btn-ghost" style="font-size:10px;padding:4px 10px" onclick="dayPlans[activeDayType].interrupts['+i+'].tasks.push({ico:\'📋\',text:\'New task\'});saveDayPlans();render()">+ Task</button>';
+  h+='<button class="mgr-btn mgr-btn-danger" style="font-size:10px;padding:4px 10px;margin-left:auto" onclick="openInt=null;dayPlans[activeDayType].interrupts.splice('+i+',1);saveDayPlans();render()">Remove interrupt</button></div>';
+  h+='</div>';
+  return h;
+}
+
+function toggleInt(id){openInt=openInt===id?null:id;render()}
+function toggleLock(i){var x=dayPlans[activeDayType].interrupts[i];x.hardLock=!x.hardLock;saveDayPlans();render()}
+function upd(i,k,v){dayPlans[activeDayType].interrupts[i][k]=v;saveDayPlans();render()}
+function updTask(i,ti,k,v){dayPlans[activeDayType].interrupts[i].tasks[ti][k]=v;saveDayPlans()}
+function addInterrupt(){
+  var plan=dayPlans[activeDayType];
+  if(!plan.interrupts)plan.interrupts=[];
+  var ni={id:'int_'+Date.now(),time:'12:00',squad:SQUADS[0].name,duration:30,hardLock:true,tasks:[{ico:'📋',text:'New task'}]};
+  plan.interrupts.push(ni);openInt=ni.id;saveDayPlans();render();
+}
+function confirmPreset(k){pendingPreset=k;render()}
+function applyPreset(k){
+  var plan=dayPlans[activeDayType];
+  undoSnapshot=JSON.parse(JSON.stringify(plan));
+  pendingPreset=null;
+  // Sample preset payloads (real app keeps its existing preset definitions)
+  var P={
+    deepWork:{base:'App Gen',ints:[['06:00','Exercise',15,true],['07:00','Food',20,true],['12:00','Food',30,true],['15:00','Health',10,false],['19:00','Food',30,true],['21:00','Cleaning',15,false]]},
+    balanced:{base:'App Gen',ints:[['07:00','Exercise',30,true],['08:00','Food',20,true],['12:00','Food',30,true],['14:00','Admin',30,false],['18:00','Exercise',45,true],['19:30','Food',30,true]]},
+    recovery:{base:'Health',ints:[['08:00','Food',30,true],['11:00','Exercise',20,false],['13:00','Food',30,true],['19:00','Food',30,true]]},
+    office:{base:'Job Hunt',ints:[['06:30','Exercise',15,true],['07:15','Food',20,true],['12:30','Food',45,true],['19:30','Food',30,true]]}
+  }[k];
+  plan.base=P.base;
+  plan.interrupts=P.ints.map(function(x,i){return{id:k+'_'+i,time:x[0],squad:x[1],duration:x[2],hardLock:x[3],tasks:[{ico:'📋',text:'Checklist item'}]}});
+  openInt=null;saveDayPlans();render();
+  clearTimeout(undoTimer);undoTimer=setTimeout(function(){undoSnapshot=null;render()},8000);
+}
+function undoPreset(){
+  if(!undoSnapshot)return;
+  dayPlans[activeDayType]=undoSnapshot;undoSnapshot=null;clearTimeout(undoTimer);
+  saveDayPlans();render();
+}
+render();
+</script>
+</body>
+</html>

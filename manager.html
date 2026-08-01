@@ -42,7 +42,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .mgr-inp{background:var(--card2);border:1px solid var(--amberBd);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text);font-family:inherit;outline:none}
 .mgr-toggle{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--amberBd);background:var(--card2);color:var(--text2);font-family:inherit;transition:all .15s}
 .mgr-toggle.on{background:var(--amber);color:var(--bg);border-color:var(--amber)}
-.mgr-btn{border:none;padding:6px 14px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.mgr-btn{border:none;padding:6px 14px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
 .mgr-btn-primary{background:var(--amber);color:var(--bg)}
 .mgr-btn-danger{background:rgba(226,75,74,.12);color:var(--red)}
 .mgr-btn-ghost{background:none;color:var(--amber);border:1px dashed var(--amberBd)}
@@ -58,25 +58,57 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* Timeline */
 .tl-wrap{position:relative;overflow-x:auto;border:1px solid var(--amberBd);border-radius:10px;background:var(--card);margin-bottom:16px}
+.tl-body{position:relative;min-width:640px}
 .tl-header{display:flex;position:sticky;top:0;background:var(--card);z-index:2;border-bottom:1px solid var(--amberBd)}
 .tl-label-col{min-width:130px;padding:8px 10px;font-size:10px;font-weight:700;color:var(--text2)}
 .tl-hours{display:flex;flex:1}
-.tl-hour{min-width:46px;flex:1;text-align:center;font-size:8px;color:var(--text3);padding:6px 0;font-family:'JetBrains Mono',monospace;border-left:1px solid rgba(255,255,255,.03)}
+.tl-hour{min-width:32px;flex:1;text-align:center;font-size:10px;color:var(--text2);padding:6px 0;font-family:'JetBrains Mono',monospace;border-left:1px solid rgba(255,255,255,.04)}
 .tl-hour.now{color:var(--amber);font-weight:700}
-.tl-row{display:flex;min-height:36px;border-bottom:1px solid rgba(255,255,255,.03)}
+.tl-label{min-width:60px;display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:10px;font-weight:700;border-right:1px solid rgba(255,255,255,.05)}
+.tl-row{display:flex;min-height:34px;border-bottom:1px solid rgba(255,255,255,.03)}
 .tl-row:last-child{border-bottom:none}
 .tl-row-label{min-width:130px;display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:10px;font-weight:600;border-right:1px solid rgba(255,255,255,.05)}
 .tl-row-label .type{font-size:7px;padding:1px 4px;border-radius:3px;font-weight:700}
 .tl-row-label .type.atk{background:#e2722a22;color:var(--atkC)}
 .tl-row-label .type.mid{background:#3b82f622;color:var(--midC)}
 .tl-row-label .type.def{background:#a855f722;color:var(--defC)}
-.tl-track{flex:1;position:relative;min-height:36px}
-.tl-bar{position:absolute;top:4px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;min-width:20px;cursor:pointer}
+.tl-track{flex:1;position:relative;min-height:34px}
+.tl-bar{position:absolute;top:4px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace;overflow:hidden;white-space:nowrap}
 .tl-bar:hover{opacity:.85}
-.tl-bar.atk{background:rgba(226,114,42,.35);border:1px solid rgba(226,114,42,.5);color:#e8a060}
-.tl-bar.mid{background:rgba(59,130,246,.25);border:1px solid rgba(59,130,246,.4);color:#7ab0f5}
-.tl-bar.def{background:rgba(168,85,247,.25);border:1px solid rgba(168,85,247,.4);color:#b890f0}
-.tl-now{position:absolute;top:0;bottom:0;width:2px;background:var(--amber);z-index:1;pointer-events:none}
+.tl-bar.atk{background:rgba(226,114,42,.35);border:1px solid rgba(226,114,42,.5);color:#efb289}
+.tl-bar.mid{background:rgba(59,130,246,.25);border:1px solid rgba(59,130,246,.4);color:#9cc3f7}
+.tl-bar.def{background:rgba(168,85,247,.25);border:1px solid rgba(168,85,247,.4);color:#cdaaf5}
+.tl-bar.clash{border:1.5px solid var(--red);box-shadow:0 0 0 1px rgba(226,75,74,.3)}
+.tl-tick{position:absolute;top:8px;width:6px;height:18px;border-radius:3px}
+.tl-tick.atk{background:var(--atkC)}.tl-tick.mid{background:var(--midC)}.tl-tick.def{background:var(--defC)}
+.tl-tick.clash{outline:1.5px solid var(--red)}
+.tl-now{position:absolute;top:0;bottom:0;width:2px;background:var(--amber);z-index:3;pointer-events:none;opacity:.8}
+
+/* Day Plans — collapsed interrupt rows */
+.int-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--amberBd);border-left-width:3px;border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:border-color .15s;min-height:44px}
+.int-row:hover{border-color:var(--amber)}
+.int-row.open{border-color:var(--amber);border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0}
+.int-time{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--amber);min-width:50px}
+.int-name{font-size:12px;font-weight:700;flex:1;display:flex;align-items:center;gap:6px}
+.int-meta{font-size:10px;color:var(--text2)}
+.lock-badge{font-size:9px;padding:3px 8px;border-radius:5px;font-weight:700;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.lock-badge.hard{background:rgba(226,75,74,.15);color:var(--red)}
+.lock-badge.soft{background:var(--amberBg);color:var(--amber)}
+.int-editor{background:var(--card);border:1px solid var(--amber);border-top:none;border-radius:0 0 10px 10px;padding:12px;margin-bottom:6px}
+.chev{font-size:9px;color:var(--text3);transition:transform .15s}
+.int-row.open .chev{transform:rotate(180deg)}
+
+/* Day Plans — overlap resolver */
+.clash-note{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--red);background:rgba(226,75,74,.08);border:1px solid rgba(226,75,74,.25);border-radius:8px;padding:6px 10px;margin-bottom:8px}
+.clash-card{background:var(--card);border:1px solid rgba(226,75,74,.35);border-radius:10px;padding:12px;margin-bottom:12px}
+.clash-cols{display:flex;gap:10px;flex-wrap:wrap}
+.clash-col{flex:1;min-width:180px;background:var(--card2);border-radius:8px;padding:10px;border-top:2px solid var(--midC)}
+.clash-task{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;color:var(--text)}
+
+/* Confirm sheet + undo toast */
+.confirm-wrap{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.confirm-box{background:var(--card);border:1px solid var(--amberBd);border-radius:14px;padding:20px;max-width:340px;width:100%}
+.undo-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--amberBd);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;font-size:11px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 
 /* Tier chips */
 .tier-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
@@ -191,6 +223,9 @@ var dayPlans={
   }
 };
 var activeDayType='weekend'; // which plan is being edited
+var openInt=null;            // id of the one expanded interrupt editor
+var pendingPreset=null;      // preset key awaiting confirmation
+var undoSnapshot=null,undoTimer=null; // pre-preset plan snapshot + toast timer
 var clashRules={weekendShieldsUp:{enabled:true,beforeHour:13,description:'Defenders/Mid before Attackers until 1 PM'},creditEmergency:{enabled:true,threshold:10,description:'Force squad if credits below threshold'},streakProtection:{enabled:true,description:'Squad with 3+ day streak gets +1 tier boost'},moodOverride:{enabled:true,description:'Emergency → Health/Psychology become captains'}};
 var allTasks=[],playerMap={},timeSlotRules={},ofcBlLinks=[],ssMessages=[],ssTimeoutMin=15;
 var costTriggerCfg={timeTriggers:[],gpsShops:[],gpsCooldownMin:15,officeDeparture:{enabled:true,delayMin:2}};

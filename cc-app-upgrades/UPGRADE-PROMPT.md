@@ -1,12 +1,14 @@
-# Implementation prompt — Command Centre app upgrades: Squad Board + My Apps redesign + dockless navigation + radar boot splash
+# Implementation prompt — Command Centre app upgrades: Squad Board + My Apps redesign + dockless navigation + radar boot splash + Day Plans redesign
 
 > Hand this file to a coding agent working in the Command Centre repo (the folder with
-> `index.html`, ~5,700 lines, vanilla JS + Supabase). Four approved, prototyped upgrades.
+> `index.html`, ~5,700 lines, vanilla JS + Supabase). Five approved, prototyped upgrades.
 > The visual reference prototypes are `SquadBoard.jsx.txt` and `MyApps.jsx.txt` (React
 > source, copied next to this file) — they are the DESIGN SPEC ONLY; the app is vanilla
 > JS string-built HTML, so port the look and interactions, do not import React.
 > `dockless-prototype.html.txt` (also next to this file) is the reference for
 > Upgrades 3 & 4 (top-bar layout, lone 🚨 styling, and the `Splash` component).
+> `day-plans-redesign.html.txt` is the reference for Upgrade 5 — it is vanilla JS
+> using manager.html's exact class names and tokens, so it ports nearly 1:1.
 
 ---
 
@@ -168,6 +170,52 @@ load nicely). Port from the `Splash` component in `dockless-prototype.html`:
   2px letter-spacing, uppercase, `var(--text2)`).
 - Dismiss: fade out (.5s) once initial data load resolves, minimum display ~1.2s so
   it never just flashes; remove from DOM after fade. No splash on soft re-renders.
+
+## Upgrade 5 — Day Plans page redesign (manager.html)
+
+This one targets **`manager.html`**, not index.html: replace `pgDayPlans()` and
+`renderDayTimeline()` with the versions in `day-plans-redesign.html.txt`. Keep the
+existing `dayPlans` data shape, `saveDayPlans()`, `SQUADS`, `findSq()`, and preset
+definitions — the reference file stubs those; port only the rendering + interaction
+logic and the new CSS classes (`.int-row`, `.int-editor`, `.lock-badge`, `.tl-tick`,
+`.clash-note`, `.clash-card`, `.clash-cols`, `.clash-col`, `.clash-task`,
+`.confirm-wrap`, `.confirm-box`, `.undo-toast`, updated `.tl-*` sizes).
+
+What changes:
+1. **Collapsed interrupt rows** — each interrupt is a 44px summary row (time · icon ·
+   squad · duration · task count · lock badge · chevron). Tap expands ONE editor at a
+   time (`openInt` id state); the editor holds time/squad/duration inputs + checklist
+   + remove. The lock badge itself toggles hard/soft (stopPropagation — no separate
+   toggle button). No always-open config rows.
+2. **Legible timeline** — hour labels 10px `var(--text2)`; bar labels 9px JetBrains
+   Mono; interrupts too narrow for text (<~4.7% width) render as a 6px color tick
+   (`.tl-tick`) with full info in `title`. ONE now-line overlay positioned over the
+   whole timeline body (`left:calc(60px + (100% - 60px) * fraction)`), not one per row.
+3. **Preset confirm + undo** — preset buttons open a confirm dialog stating what will
+   be replaced; on apply, snapshot the old plan and show an 8s undo toast that
+   restores it. Presets never wipe silently.
+4. **Empty state** — when a day type has zero interrupts: hide the timeline and
+   interrupt list, show a centered card with preset buttons ("Start from a preset")
+   and a ghost "+ Or add a single interrupt" button.
+5. **Overlap handling** — detect overlapping [start, start+duration) ranges. Clashing
+   bars/ticks get a red outline (`.clash` class); a note appears plus a **clash
+   resolver card** per overlap cluster: the time window, one column per competing
+   interrupt (squad, 🔴 P1 · HARD first then 🟡 Pn · SOFT, time · duration, and the
+   FULL checklist) so the user can choose what to do in that window.
+6. Minor: tab labels carry interrupt counts ("📅 Weekday · 6"); new interrupts default
+   to `SQUADS[0].name` (not hardcoded 'Food') and open their editor immediately;
+   duration options gain 90 and 120; `white-space:nowrap` on `.mgr-btn`/`.lock-badge`.
+
+Acceptance criteria:
+- Six interrupts render as six one-line rows; expanding one collapses any other.
+- Lock badge toggles hard/soft directly from the collapsed row.
+- A 10–15min interrupt shows as a tick, never clipped text; tooltip has full info.
+- Applying a preset asks first and offers undo for ~8s; undo restores exactly.
+- Empty day type shows the preset empty state, no empty timeline.
+- Two overlapping interrupts produce red outlines + a resolver card listing both
+  checklists with priority badges.
+- Existing Supabase persistence (`saveDayPlans`) and the index.html interrupt
+  scheduler (`dpCheckInterrupts`) keep working unchanged.
 
 ## Acceptance criteria
 
