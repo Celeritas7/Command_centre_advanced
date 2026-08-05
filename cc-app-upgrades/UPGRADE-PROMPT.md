@@ -217,6 +217,61 @@ Acceptance criteria:
 - Existing Supabase persistence (`saveDayPlans`) and the index.html interrupt
   scheduler (`dpCheckInterrupts`) keep working unchanged.
 
+### Trigger Engine + Clash Rules — DECLINED TWICE
+
+> **Audited 2026-08-02 as a restore; re-proposed 2026-08-05 as net-new.
+> Declined both times — do not re-open, do not implement.**
+>
+> **As a restore, there is nothing to restore.** Neither card has ever existed in this
+> repo. `git log --all -S"Trigger Engine"` and `-S"Clash Rules"` over `manager.html`
+> return nothing, back to the file's first commit `01ac33b`; pre-upgrade `pgDayPlans()`
+> (`12d9f6f`) ends at the Quick Presets card and returns. The strings "Morning Kickoff
+> 07:00", "Lunch Break 12:00", "Defenders' 20:00" and "sleep gate is absolute" appear
+> nowhere in the repo. There is no prior markup, class, or handler to restore verbatim.
+>
+> **As net-new work, declined on three grounds:**
+> - `pgBrain()` already owns this. Clash resolution lives there (🏆 Priority Tiers,
+>   ⚙️ Override Rules — which renders `clashRules.weekendShieldsUp`, i.e. "Weekend
+>   shields" — ⚡ Clash Simulator, ⚠️ Active Clashes), backed by `clashPriorities` /
+>   `clashRules` / `saveClash()` / `resolveClash()`. A second surface editing the same
+>   state is a duplicate, not a feature.
+> - The three time-lock pills have no backing enable/disable flag anywhere in the app,
+>   so they could only ever render display-only. The proposal concedes this ("don't
+>   invent state") — which leaves a card whose only live control is the one toggle
+>   `pgBrain()` already has.
+> - No markup is available. The proposal cites `ui_kits/manager/index.html` and
+>   `Manager.jsx` in a separate design-system project; neither is in this repo.
+>
+> The real trigger systems are `gpsTriggers` (rendered by `pgCommute()` ⚡ Triggers,
+> engine in `index.html` `gpsCheckTriggers()`) and `costTriggerCfg.timeTriggers`
+> (`pgSettings` 💰 Smart Expense Triggers) — neither is a Day Plans concern.
+
+### Amendment (v2): My Apps grouped by squad → category
+
+My Apps is now organized in two levels: top-level **squad sections** (⚔️ Attackers ·
+🏃 Midfielders · 🪞 Defenders — squad-colored banner with icon, sub-line, active
+count, and "+ Category" in edit mode), each containing **category groups**
+(e.g. under Attackers: Language Study → JP Grammar, JLPT, Chinese, Scriptura;
+Finance → Cost Management, Investment; Career → Roadmap, writing_test). Categories
+keep their own accent color and "+ App"; the two Language Study (JA/CN) groups merge
+into one category. Search/filter hides empty categories and squads. Reference:
+`ui_kits/command_centre/MyApps.jsx` (v2).
+
+### Amendment (v3): Radar boot splash — night-ops scope
+
+Replace the light splash with a dark high-stakes radar scope (reference: `Splash()`
+in `ui_kits/command_centre/dockless-prototype.html`):
+- Full dark backdrop (radial #221B15 → #12100D) with a faint horizontal scanline
+  drifting down.
+- 200px radar scope: accent-orange rim with outer glow, 3 concentric rings,
+  crosshairs, a rotating conic sweep beam (2s/rev, bright #FFB27A leading edge),
+  4 blips that pop and fade as the beam passes, glowing center dot, and two
+  expanding ping rings.
+- Title "Command Centre" in display font, warm-white with orange glow; below it a
+  status ticker cycling every 1s: "Scanning the pitch…" → "Squads located" →
+  "Possession mapped", with a 3-segment progress bar.
+- Total run ~3.4s: fade-out begins at 2.85s.
+
 ## Acceptance criteria
 
 Squad Board:

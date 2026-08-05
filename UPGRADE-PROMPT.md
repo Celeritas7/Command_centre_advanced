@@ -217,32 +217,34 @@ Acceptance criteria:
 - Existing Supabase persistence (`saveDayPlans`) and the index.html interrupt
   scheduler (`dpCheckInterrupts`) keep working unchanged.
 
-### Fix (post-implementation): restore Trigger Engine + Clash Rules — DROPPED
+### Trigger Engine + Clash Rules — DECLINED TWICE
 
-> **Audited 2026-08-02. Phantom spec — do not re-open, do not implement.**
-> Neither card has ever existed in this repo. `git log --all -S"Trigger Engine"` and
-> `-S"Clash Rules"` over `manager.html` return nothing, back to the file's first commit
-> `01ac33b`; pre-upgrade `pgDayPlans()` (`12d9f6f`) ends at the Quick Presets card and
-> returns. The strings "Morning Kickoff 07:00", "Lunch Break 12:00", "Defenders' 20:00"
-> and "sleep gate is absolute" appear nowhere in the repo. There is no prior markup,
-> class, or handler to restore verbatim.
+> **Audited 2026-08-02 as a restore; re-proposed 2026-08-05 as net-new.
+> Declined both times — do not re-open, do not implement.**
 >
-> Nothing is actually missing: clash resolution already lives in `pgBrain()` (🏆 Priority
-> Tiers, ⚙️ Override Rules — which renders `clashRules.weekendShieldsUp`, i.e. "Weekend
-> shields" — ⚡ Clash Simulator, ⚠️ Active Clashes), backed by `clashPriorities` /
-> `clashRules` / `saveClash()` / `resolveClash()`. The real trigger systems are
-> `gpsTriggers` (rendered by `pgCommute()` ⚡ Triggers, engine in `index.html`
-> `gpsCheckTriggers()`) and `costTriggerCfg.timeTriggers` (`pgSettings` 💰 Smart Expense
-> Triggers) — neither is a Day Plans concern. Building these cards would be new feature
-> work, not a restore; treat it as a fresh request if it is ever wanted.
-
-The old `pgDayPlans()` rendered two cards at the bottom of the page — **🧠 Trigger
-Engine** (GPS + time trigger toggles: Morning Kickoff 07:00, Lunch Break 12:00,
-Defenders' 20:00, Weekend shields) and **⚔️ Clash Rules** (priority resolution,
-"Sleep wins / sleep gate is absolute"). The redesign reference didn't include them,
-so they were dropped. Restore them **verbatim from the pre-upgrade `pgDayPlans()`**
-(git history / the old markup), appended after the Quick Presets card. No visual
-changes — same markup, classes, and handlers as before the upgrade.
+> **As a restore, there is nothing to restore.** Neither card has ever existed in this
+> repo. `git log --all -S"Trigger Engine"` and `-S"Clash Rules"` over `manager.html`
+> return nothing, back to the file's first commit `01ac33b`; pre-upgrade `pgDayPlans()`
+> (`12d9f6f`) ends at the Quick Presets card and returns. The strings "Morning Kickoff
+> 07:00", "Lunch Break 12:00", "Defenders' 20:00" and "sleep gate is absolute" appear
+> nowhere in the repo. There is no prior markup, class, or handler to restore verbatim.
+>
+> **As net-new work, declined on three grounds:**
+> - `pgBrain()` already owns this. Clash resolution lives there (🏆 Priority Tiers,
+>   ⚙️ Override Rules — which renders `clashRules.weekendShieldsUp`, i.e. "Weekend
+>   shields" — ⚡ Clash Simulator, ⚠️ Active Clashes), backed by `clashPriorities` /
+>   `clashRules` / `saveClash()` / `resolveClash()`. A second surface editing the same
+>   state is a duplicate, not a feature.
+> - The three time-lock pills have no backing enable/disable flag anywhere in the app,
+>   so they could only ever render display-only. The proposal concedes this ("don't
+>   invent state") — which leaves a card whose only live control is the one toggle
+>   `pgBrain()` already has.
+> - No markup is available. The proposal cites `ui_kits/manager/index.html` and
+>   `Manager.jsx` in a separate design-system project; neither is in this repo.
+>
+> The real trigger systems are `gpsTriggers` (rendered by `pgCommute()` ⚡ Triggers,
+> engine in `index.html` `gpsCheckTriggers()`) and `costTriggerCfg.timeTriggers`
+> (`pgSettings` 💰 Smart Expense Triggers) — neither is a Day Plans concern.
 
 ## Acceptance criteria
 
