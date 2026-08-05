@@ -21,17 +21,46 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .loading-spinner{width:32px;height:32px;border:3px solid var(--as);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-text{font-size:13px;color:var(--text2)}
-/* Radar boot splash — once per full page load, over everything while data loads */
-.boot-splash{position:fixed;inset:0;z-index:99990;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .5s ease}
+/* Radar boot splash — night-ops scope, once per full page load, over everything while data
+   loads. Deliberately NOT themed: the scope stays dark so the boot sequence reads the same
+   whichever location theme happens to load first. */
+.boot-splash{position:fixed;inset:0;z-index:99990;background:radial-gradient(120% 90% at 50% 38%,#101B14 0%,#0A120D 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;overflow:hidden;transition:opacity .55s ease}
 .boot-splash.out{opacity:0;pointer-events:none}
-.boot-stage{position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center}
-.boot-ping{position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);animation:ccPing 1.6s ease-out infinite}
-.boot-ping.d2{animation-delay:.8s}
-.radar-dish{transform-box:view-box;transform-origin:32px 44px;animation:ccSweep 2.4s linear infinite}
+.boot-scanline{position:absolute;left:0;right:0;height:90px;background:linear-gradient(180deg,transparent,rgba(74,222,128,.06),transparent);animation:ccScan 3.4s linear infinite;pointer-events:none}
+.boot-corner{position:absolute;width:22px;height:22px;border-color:rgba(74,222,128,.5);border-style:solid;border-width:0}
+.boot-corner.tl{left:10px;top:10px;border-top-width:1.5px;border-left-width:1.5px}
+.boot-corner.tr{right:10px;top:10px;border-top-width:1.5px;border-right-width:1.5px}
+.boot-corner.bl{left:10px;bottom:10px;border-bottom-width:1.5px;border-left-width:1.5px}
+.boot-corner.br{right:10px;bottom:10px;border-bottom-width:1.5px;border-right-width:1.5px}
+.boot-hud{position:absolute;top:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8.5px;letter-spacing:1px;color:rgba(74,222,128,.75);line-height:1.6}
+.boot-hud.l{left:42px}
+.boot-hud.r{right:42px;display:flex;align-items:center;gap:6px;color:rgba(74,222,128,.85)}
+.boot-hud-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;box-shadow:0 0 8px 2px rgba(74,222,128,.8);animation:ccPing 1.2s ease-out infinite}
+.boot-scope{position:relative;width:200px;height:200px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 50% 50%,rgba(74,222,128,.10) 0%,rgba(74,222,128,.04) 45%,transparent 72%);border:1.5px solid rgba(74,222,128,.5);box-shadow:0 0 40px rgba(74,222,128,.25),inset 0 0 30px rgba(74,222,128,.12)}
+.boot-ring{position:absolute;border-radius:50%;border:1px solid rgba(74,222,128,.28)}
+.boot-ring.r1{left:14%;top:14%;width:72%;height:72%}
+.boot-ring.r2{left:27%;top:27%;width:46%;height:46%}
+.boot-ring.r3{left:39%;top:39%;width:22%;height:22%}
+.boot-cross-v{position:absolute;left:50%;top:4px;bottom:4px;width:1px;background:rgba(74,222,128,.2)}
+.boot-cross-h{position:absolute;top:50%;left:4px;right:4px;height:1px;background:rgba(74,222,128,.2)}
+.boot-sweep-clip{position:absolute;inset:0;border-radius:50%;overflow:hidden}
+.boot-sweep{position:absolute;inset:0;animation:ccSweep 2s linear infinite;background:conic-gradient(from 0deg,transparent 0deg,transparent 250deg,rgba(74,222,128,.05) 290deg,rgba(74,222,128,.28) 340deg,rgba(201,249,217,.85) 358deg,transparent 360deg)}
+.boot-blip{position:absolute;width:7px;height:7px;margin-left:-3.5px;margin-top:-3.5px;border-radius:50%;background:#C9F9D9;box-shadow:0 0 10px 3px rgba(74,222,128,.8);animation:ccBlip 2s linear infinite}
+.boot-core{position:absolute;left:50%;top:50%;width:8px;height:8px;margin-left:-4px;margin-top:-4px;border-radius:50%;background:#C9F9D9;box-shadow:0 0 12px 4px rgba(74,222,128,.9)}
+.boot-ping{position:absolute;inset:-14px;border-radius:50%;border:1.5px solid rgba(74,222,128,.6);animation:ccPing 2s ease-out infinite}
+.boot-ping.d2{animation-delay:1s}
 @keyframes ccSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes ccPing{0%{transform:scale(.4);opacity:.7}100%{transform:scale(1.5);opacity:0}}
-.boot-title{font-family:'Fraunces',serif;font-size:20px;font-weight:700;color:var(--text)}
-.boot-sub{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-top:4px}
+@keyframes ccBlip{0%,18%{opacity:0;transform:scale(.3)}22%{opacity:1;transform:scale(1.5)}30%{transform:scale(1)}70%{opacity:1}100%{opacity:0;transform:scale(.6)}}
+@keyframes ccRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ccScan{0%{top:-10%}100%{top:110%}}
+.boot-txt{text-align:center;animation:ccRise .5s ease both}
+.boot-title{font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:#EAF7EE;text-shadow:0 0 24px rgba(74,222,128,.35)}
+.boot-sub{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#4ADE80;margin-top:6px;animation:ccRise .35s ease both}
+.boot-segs{display:flex;gap:5px;justify-content:center;margin-top:12px}
+.boot-seg{width:8px;height:3px;border-radius:2px;background:rgba(74,222,128,.25);transition:all .3s}
+.boot-seg.on{width:18px;background:#4ADE80}
+.boot-pct{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8.5px;letter-spacing:1.5px;color:rgba(74,222,128,.6);margin-top:10px}
 .pitch{display:flex;flex-direction:column;min-height:100vh;padding:16px}
 .pitch-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .pitch-name{font-family:'Fraunces',serif;font-size:18px;font-weight:700}
@@ -1079,29 +1108,28 @@ body.tkv-active .emg-btn,body.tkv-active .rp-btn,body.tkv-active .nudge,body.tkv
 </style>
 </head>
 <body>
-<!-- RADAR BOOT SPLASH — removed from the DOM once the initial load resolves -->
+<!-- RADAR BOOT SPLASH — night-ops scope; removed from the DOM once the initial load resolves -->
 <div class="boot-splash" id="bootSplash">
-  <div class="boot-stage">
+  <div class="boot-scanline"></div>
+  <span class="boot-corner tl"></span><span class="boot-corner tr"></span><span class="boot-corner bl"></span><span class="boot-corner br"></span>
+  <div class="boot-hud l">CC-OS v2.6<br>BOOT SEQUENCE</div>
+  <div class="boot-hud r"><span class="boot-hud-dot"></span>AI COACH ONLINE</div>
+  <div class="boot-scope">
+    <span class="boot-ring r1"></span><span class="boot-ring r2"></span><span class="boot-ring r3"></span>
+    <span class="boot-cross-v"></span><span class="boot-cross-h"></span>
+    <div class="boot-sweep-clip"><div class="boot-sweep"></div></div>
+    <span class="boot-blip" style="left:66%;top:30%;animation-delay:.35s"></span>
+    <span class="boot-blip" style="left:30%;top:62%;animation-delay:1.15s"></span>
+    <span class="boot-blip" style="left:58%;top:72%;animation-delay:1.7s"></span>
+    <span class="boot-blip" style="left:38%;top:24%;animation-delay:.8s"></span>
+    <span class="boot-core"></span>
     <span class="boot-ping"></span><span class="boot-ping d2"></span>
-    <svg width="88" height="88" viewBox="0 0 64 64" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <g class="radar-dish">
-        <g stroke="#D95D39" stroke-width="2.4">
-          <path d="M14 30 Q18 10 40 8"/>
-          <path d="M14 30 Q30 34 40 8" stroke-width="1.4" opacity=".55"/>
-          <path d="M17 24 Q26 24 33 13" stroke-width="1.4" opacity=".55"/>
-          <path d="M22 16 Q30 18 37 10" stroke-width="1.4" opacity=".55"/>
-        </g>
-        <path d="M27 26 L21 36" stroke="var(--text)" stroke-width="2"/>
-        <circle cx="20" cy="38" r="3" fill="#D95D39"/>
-        <path d="M30 30 L34 44" stroke="var(--text)" stroke-width="2.4"/>
-      </g>
-      <rect x="24" y="44" width="20" height="11" rx="1.5" stroke="var(--text)" stroke-width="2"/>
-      <path d="M26 55 L26 60 M42 55 L42 60 M22 60 L46 60" stroke="var(--text)" stroke-width="2"/>
-    </svg>
   </div>
-  <div style="text-align:center">
+  <div class="boot-txt">
     <div class="boot-title">Command Centre</div>
-    <div class="boot-sub">Scanning the pitch…</div>
+    <div class="boot-sub" id="bootSub">Scanning the pitch…</div>
+    <div class="boot-segs"><span class="boot-seg on" id="bootSeg0"></span><span class="boot-seg" id="bootSeg1"></span><span class="boot-seg" id="bootSeg2"></span></div>
+    <div class="boot-pct" id="bootPct">CALIBRATING AI COACH · 0%</div>
   </div>
 </div>
 
@@ -1349,19 +1377,45 @@ body.tkv-active .emg-btn,body.tkv-active .rp-btn,body.tkv-active .nudge,body.tkv
 <script>
 const sb=window.supabase.createClient('https://wylxvmkcrexwfpjpbhyy.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak');
 
-// ===== RADAR BOOT SPLASH =====
-// Shown once per full page load. Fades out when the initial data load resolves,
-// with a minimum on-screen time so it never just flashes.
+// ===== RADAR BOOT SPLASH (night-ops scope) =====
+// Shown once per full page load. The scope runs a ~3.4s boot sequence — status ticker,
+// progress segments, calibration counter — then fades once the initial data load has
+// resolved, with a minimum on-screen time so the sequence never gets cut short.
 const bootT0=Date.now();
-const BOOT_SPLASH_MIN=1200;
-let splashDismissed=false;
-function dismissSplash(){
+const BOOT_SPLASH_MIN=2850;   // fade starts here, .55s fade → ~3.4s total
+const BOOT_SPLASH_FAST=400;   // sleep-gate path: no data load to cover, so don't stall
+const BOOT_MSGS=['Scanning the pitch…','Squads located','Possession mapped'];
+let splashDismissed=false,bootMsg=0,bootPct=0;
+// Ticker: advances the status line once a second and the calibration % every 90ms.
+// Self-clears once the splash leaves the DOM, so it can never outlive the element.
+const bootTicker=setInterval(function(){
+  const sub=document.getElementById('bootSub');
+  if(!sub){clearInterval(bootTicker);return}
+  bootPct=Math.min(bootPct+Math.ceil(Math.random()*4)+1,100);
+  const p=document.getElementById('bootPct');
+  if(p)p.textContent='CALIBRATING AI COACH · '+bootPct+'%';
+  const i=Math.min(Math.floor((Date.now()-bootT0)/1000),BOOT_MSGS.length-1);
+  if(i!==bootMsg){
+    bootMsg=i;sub.textContent=BOOT_MSGS[i];
+    sub.style.animation='none';void sub.offsetWidth;sub.style.animation=''; // replay the rise
+    for(let k=0;k<BOOT_MSGS.length;k++){
+      const s=document.getElementById('bootSeg'+k);
+      if(s)s.className='boot-seg'+(k<=i?' on':'');
+    }
+  }
+},90);
+// fast=true skips the full boot sequence — used by the sleep gate, which shows no data
+// and shouldn't sit behind a 2.85s scope animation just to reach a lock screen.
+function dismissSplash(fast){
   if(splashDismissed)return;splashDismissed=true;
-  const el=document.getElementById('bootSplash');if(!el)return;
+  const el=document.getElementById('bootSplash');
+  if(!el){clearInterval(bootTicker);return}
+  const minShow=fast?BOOT_SPLASH_FAST:BOOT_SPLASH_MIN;
   setTimeout(function(){
+    clearInterval(bootTicker);
     el.classList.add('out');
-    setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},520);
-  },Math.max(0,BOOT_SPLASH_MIN-(Date.now()-bootT0)));
+    setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},580);
+  },Math.max(0,minShow-(Date.now()-bootT0)));
 }
 
 // ===== OVERLAY QUEUE (OQ) =====
@@ -6279,7 +6333,7 @@ setInterval(sleepGateCheck,30000);
 async function init(){applyTheme(loc);updateBadge();updateClock();setInterval(updateClock,60000);
   // Sleep gate — check before anything else
   sleepGateCheck();
-  if(isSleepTime()){dismissSplash();return} // don't load data, don't render — just show gate
+  if(isSleepTime()){dismissSplash(true);return} // don't load data, don't render — just show gate
   await loadAll();await checkAndReactivate();
   // Load brain configs (non-blocking)
   loadClashConfig();loadPersonalityConfig();

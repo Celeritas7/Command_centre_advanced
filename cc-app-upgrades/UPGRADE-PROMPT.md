@@ -300,9 +300,18 @@ Dockless navigation:
 - No dock, no corner FABs, no Kickoff button remain; nothing overlaps the pitch or
   the coach dot.
 
-Radar splash:
-- Shows on every full page load, radar spins, fades out after data load (≥1.2s),
-- Uses theme vars so it matches whatever location theme loads first.
+Radar splash (v3 night-ops scope — supersedes the original U4 criteria):
+- Shows on every full page load; the sweep beam rotates, blips pop as it passes, and
+  the status ticker runs Scanning the pitch… → Squads located → Possession mapped.
+- Fades once the initial data load resolves but never before ~2.85s (the full boot
+  sequence), ~3.4s total including the .55s fade.
+- One exception: the sleep-gate path calls `dismissSplash(true)`, which cuts the
+  minimum to ~400ms. That path loads no data and only has to reach the lock screen,
+  so holding the scope there is dead time.
+- **Deliberately unthemed — do not re-open as a theming bug.** The v3 scope is fixed
+  dark (`#101B14`→`#0A120D`, green `#4ADE80`) exactly as the prototype specifies, and
+  does NOT read the theme vars. This replaces the original U4 line "uses theme vars so
+  it matches whatever location theme loads first", which no longer applies.
 
 ## Out of scope
 - No Supabase schema changes (unless the owner opts into a priority column).
