@@ -18,50 +18,66 @@ a{color:var(--accent)}a:hover{color:var(--text)}
 @keyframes ccSweep{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes ccPing{0%{transform:scale(.4);opacity:.7}100%{transform:scale(1.5);opacity:0}}
 @keyframes ccSplashOut{to{opacity:0;visibility:hidden}}
+@keyframes ccBlip{0%,18%{opacity:0;transform:scale(.3)}22%{opacity:1;transform:scale(1.5)}30%{transform:scale(1)}70%{opacity:1}100%{opacity:0;transform:scale(.6)}}
+@keyframes ccRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ccScan{0%{top:-10%}100%{top:110%}}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel" src="PitchHome.jsx?v=4"></script>
 <script type="text/babel" src="SquadBoard.jsx?v=11"></script>
-<script type="text/babel" src="MyApps.jsx?v=1"></script>
+<script type="text/babel" src="MyApps.jsx?v=4"></script>
 <script type="text/babel" src="OfficeDashboard.jsx?v=3"></script>
 <script type="text/babel" src="LockScreen.jsx?v=3"></script>
 <script type="text/babel" src="QuickAdd.jsx?v=3"></script>
 <script type="text/babel">
 const { SegmentedControl } = window.CommandCentreDesignSystem_63bc0b;
 
-// Radar splash — plays once on load, fades to reveal the pitch
+// Radar splash — night-ops scope: dark screen, sweep beam, blips, status ticker
 function Splash() {
   const [gone, setGone] = React.useState(false);
-  React.useEffect(() => { const t = setTimeout(()=>setGone(true), 2400); return () => clearTimeout(t); }, []);
+  const [msg, setMsg] = React.useState(0);
+  const [pct, setPct] = React.useState(0);
+  const MSGS = ['Scanning the pitch…','Squads located','Possession mapped'];
+  React.useEffect(() => {
+    const t = setTimeout(()=>setGone(true), 3400);
+    const m = setInterval(()=>setMsg(i=>Math.min(i+1, MSGS.length-1)), 1000);
+    const p = setInterval(()=>setPct(v=>Math.min(v+Math.ceil(Math.random()*4)+1, 100)), 90);
+    return () => { clearTimeout(t); clearInterval(m); clearInterval(p); };
+  }, []);
   if (gone) return null;
+  const ring = (pct) => ({position:'absolute',left:(50-pct/2)+'%',top:(50-pct/2)+'%',width:pct+'%',height:pct+'%',borderRadius:'50%',border:'1px solid rgba(74,222,128,.28)'});
+  const blip = (x,y,delay) => (
+    <span style={{position:'absolute',left:x+'%',top:y+'%',width:7,height:7,marginLeft:-3.5,marginTop:-3.5,borderRadius:'50%',background:'#C9F9D9',boxShadow:'0 0 10px 3px rgba(74,222,128,.8)',animation:'ccBlip 2s linear '+delay+'s infinite'}}></span>
+  );
   return (
-    <div style={{position:'absolute',inset:0,zIndex:600,background:'var(--bg)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:18,animation:'ccSplashOut .5s ease .9s forwards'}}>
-      <div style={{position:'relative',width:120,height:120,display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <span style={{position:'absolute',inset:0,borderRadius:'50%',border:'2px solid var(--accent)',animation:'ccPing 1.6s ease-out infinite'}}></span>
-        <span style={{position:'absolute',inset:0,borderRadius:'50%',border:'2px solid var(--accent)',animation:'ccPing 1.6s ease-out .8s infinite'}}></span>
-        <svg width="88" height="88" viewBox="0 0 64 64" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          {/* rotating dish assembly — spins about the tower top */}
-          <g style={{transformOrigin:'32px 44px',animation:'ccSweep 2.4s linear infinite'}}>
-            <g stroke="#D95D39" strokeWidth="2.4">
-              <path d="M14 30 Q18 10 40 8" />
-              <path d="M14 30 Q30 34 40 8" strokeWidth="1.4" opacity=".55" />
-              <path d="M17 24 Q26 24 33 13" strokeWidth="1.4" opacity=".55" />
-              <path d="M22 16 Q30 18 37 10" strokeWidth="1.4" opacity=".55" />
-            </g>
-            <path d="M27 26 L21 36" stroke="var(--text)" strokeWidth="2" />
-            <circle cx="20" cy="38" r="3" fill="#D95D39" />
-            <path d="M30 30 L34 44" stroke="var(--text)" strokeWidth="2.4" />
-          </g>
-          {/* static tower */}
-          <rect x="24" y="44" width="20" height="11" rx="1.5" stroke="var(--text)" strokeWidth="2" />
-          <path d="M26 55 L26 60 M42 55 L42 60 M22 60 L46 60" stroke="var(--text)" strokeWidth="2" />
-        </svg>
+    <div style={{position:'absolute',inset:0,zIndex:600,background:'radial-gradient(120% 90% at 50% 38%, #101B14 0%, #0A120D 70%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:24,overflow:'hidden',animation:'ccSplashOut .55s ease 2.85s forwards'}}>
+      <div style={{position:'absolute',left:0,right:0,height:90,background:'linear-gradient(180deg,transparent,rgba(74,222,128,.06),transparent)',animation:'ccScan 3.4s linear infinite',pointerEvents:'none'}}></div>
+      {[{l:10,t:10,bl:0,bt:1,br:1},{r:10,t:10},{l:10,b:10},{r:10,b:10}].map((c,i)=>(
+        <span key={i} style={{position:'absolute',width:22,height:22,left:c.l,right:c.r,top:c.t,bottom:c.b,borderColor:'rgba(74,222,128,.5)',borderStyle:'solid',borderWidth:(c.t!=null?'1.5px':0)+' '+(c.r!=null?'1.5px':0)+' '+(c.b!=null?'1.5px':0)+' '+(c.l!=null?'1.5px':0)}}></span>
+      ))}
+      <div style={{position:'absolute',top:14,left:42,fontFamily:'ui-monospace,SFMono-Regular,Menlo,monospace',fontSize:8.5,letterSpacing:'1px',color:'rgba(74,222,128,.75)',lineHeight:1.6}}>CC-OS v2.6<br/>BOOT SEQUENCE</div>
+      <div style={{position:'absolute',top:14,right:42,display:'flex',alignItems:'center',gap:6,fontFamily:'ui-monospace,SFMono-Regular,Menlo,monospace',fontSize:8.5,letterSpacing:'1px',color:'rgba(74,222,128,.85)'}}><span style={{width:6,height:6,borderRadius:'50%',background:'#4ADE80',boxShadow:'0 0 8px 2px rgba(74,222,128,.8)',animation:'ccPing 1.2s ease-out infinite'}}></span>AI COACH ONLINE</div>
+      <div style={{position:'relative',width:200,height:200,borderRadius:'50%',flexShrink:0,background:'radial-gradient(circle at 50% 50%, rgba(74,222,128,.10) 0%, rgba(74,222,128,.04) 45%, transparent 72%)',border:'1.5px solid rgba(74,222,128,.5)',boxShadow:'0 0 40px rgba(74,222,128,.25), inset 0 0 30px rgba(74,222,128,.12)'}}>
+        <span style={ring(72)}></span><span style={ring(46)}></span><span style={ring(22)}></span>
+        <span style={{position:'absolute',left:'50%',top:4,bottom:4,width:1,background:'rgba(74,222,128,.2)'}}></span>
+        <span style={{position:'absolute',top:'50%',left:4,right:4,height:1,background:'rgba(74,222,128,.2)'}}></span>
+        <div style={{position:'absolute',inset:0,borderRadius:'50%',overflow:'hidden'}}>
+          <div style={{position:'absolute',inset:0,animation:'ccSweep 2s linear infinite',background:'conic-gradient(from 0deg, transparent 0deg, transparent 250deg, rgba(74,222,128,.05) 290deg, rgba(74,222,128,.28) 340deg, rgba(201,249,217,.85) 358deg, transparent 360deg)'}}></div>
+        </div>
+        {blip(66,30,0.35)}{blip(30,62,1.15)}{blip(58,72,1.7)}{blip(38,24,0.8)}
+        <span style={{position:'absolute',left:'50%',top:'50%',width:8,height:8,marginLeft:-4,marginTop:-4,borderRadius:'50%',background:'#C9F9D9',boxShadow:'0 0 12px 4px rgba(74,222,128,.9)'}}></span>
+        <span style={{position:'absolute',inset:-14,borderRadius:'50%',border:'1.5px solid rgba(74,222,128,.6)',animation:'ccPing 2s ease-out infinite'}}></span>
+        <span style={{position:'absolute',inset:-14,borderRadius:'50%',border:'1.5px solid rgba(74,222,128,.6)',animation:'ccPing 2s ease-out 1s infinite'}}></span>
       </div>
-      <div style={{textAlign:'center'}}>
-        <div style={{fontFamily:'var(--font-display)',fontSize:20,fontWeight:700}}>Command Centre</div>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:'2px',textTransform:'uppercase',color:'var(--text2)',marginTop:4}}>Scanning the pitch…</div>
+      <div style={{textAlign:'center',animation:'ccRise .5s ease both'}}>
+        <div style={{fontFamily:'var(--font-display)',fontSize:22,fontWeight:700,color:'#EAF7EE',textShadow:'0 0 24px rgba(74,222,128,.35)'}}>Command Centre</div>
+        <div key={msg} style={{fontSize:10,fontWeight:700,letterSpacing:'2.5px',textTransform:'uppercase',color:'#4ADE80',marginTop:6,animation:'ccRise .35s ease both'}}>{MSGS[msg]}</div>
+        <div style={{display:'flex',gap:5,justifyContent:'center',marginTop:12}}>
+          {MSGS.map((_,i)=>(<span key={i} style={{width:i<=msg?18:8,height:3,borderRadius:2,background:i<=msg?'#4ADE80':'rgba(74,222,128,.25)',transition:'all .3s'}}></span>))}
+        </div>
+        <div style={{fontFamily:'ui-monospace,SFMono-Regular,Menlo,monospace',fontSize:8.5,letterSpacing:'1.5px',color:'rgba(74,222,128,.6)',marginTop:10}}>CALIBRATING AI COACH · {pct}%</div>
       </div>
     </div>
   );
