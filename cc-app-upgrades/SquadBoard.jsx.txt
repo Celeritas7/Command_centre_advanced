@@ -6,14 +6,23 @@ const SB_SQUADS = [
   { key:'mid', icon:'🏃', name:'Midfield', color:'#D97706', bg:'rgba(245,158,11,.04)', bd:'rgba(245,158,11,.18)' },
   { key:'def', icon:'🪞', name:'Defenders', color:'#7C3AED', bg:'rgba(139,92,246,.04)', bd:'rgba(139,92,246,.18)' },
 ];
+// Departments — same categories (and colors) as My Apps; players carry one across squads
+const SB_DEPTS = {
+  lang: { name:'Language Study', code:'🈴', color:'#38A169' },
+  fin:  { name:'Finance', code:'💰', color:'#B7791F' },
+  car:  { name:'Career', code:'💼', color:'#3B5BDB' },
+  ops:  { name:'Daily Ops', code:'📅', color:'#D97706' },
+  hlth: { name:'Health', code:'💪', color:'#0E7490' },
+  ref:  { name:'Reflection', code:'📓', color:'#7C3AED' },
+};
 const SB_PLAYERS = [
-  { id:'career', label:'Career', icon:'💼', squad:'atk' },
-  { id:'learn', label:'Learn', icon:'📚', squad:'atk' },
-  { id:'study', label:'Study', icon:'✍️', squad:'mid' },
-  { id:'food', label:'Food', icon:'🍱', squad:'mid' },
-  { id:'clean', label:'Clean', icon:'🧹', squad:'mid' },
-  { id:'sleep', label:'Sleep', icon:'😴', squad:'def' },
-  { id:'move', label:'Move', icon:'💪', squad:'def' },
+  { id:'career', label:'Career', icon:'💼', squad:'atk', dept:'car' },
+  { id:'learn', label:'Learn', icon:'📚', squad:'atk', dept:'lang' },
+  { id:'study', label:'Study', icon:'✍️', squad:'mid', dept:'lang' },
+  { id:'food', label:'Food', icon:'🍱', squad:'mid', dept:'ops' },
+  { id:'clean', label:'Clean', icon:'🧹', squad:'mid', dept:'ops' },
+  { id:'sleep', label:'Sleep', icon:'😴', squad:'def', dept:'hlth' },
+  { id:'move', label:'Move', icon:'💪', squad:'def', dept:'hlth' },
 ];
 const SB_SEED = {
   career:[{t:'Apply to 1 Tokyo ME role',rule:'Daily',pri:'High'},{t:'Update LinkedIn headline',rule:'One-off',pri:'Med'}],
@@ -36,6 +45,7 @@ function SBAssign({ player, tasks, benched, onAdd, onToggleBench }) {
   const ref = React.useRef(null);
   React.useEffect(() => { if (ref.current) ref.current.focus(); setDraft(''); }, [player.id]);
   const sq = SB_SQUADS.find(s => s.key === player.squad);
+  const dp = player.dept && SB_DEPTS[player.dept];
   function add() {
     const t = draft.trim();
     if (!t) return;
@@ -47,6 +57,7 @@ function SBAssign({ player, tasks, benched, onAdd, onToggleBench }) {
     <div>
       <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:12}}>
         <Badge tone={player.squad}>{sq.name.toUpperCase()}</Badge>
+        {dp && <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:9,fontWeight:800,letterSpacing:'.6px',textTransform:'uppercase',color:'#fff',background:dp.color,borderRadius:6,padding:'2px 7px',whiteSpace:'nowrap'}}>{dp.code} {dp.name}</span>}
         <span style={{fontSize:11,color:'var(--text2)'}}>{tasks.length} {tasks.length===1?'task':'tasks'}</span>
         <button onClick={onToggleBench} style={{marginLeft:'auto',whiteSpace:'nowrap',border:'1.5px solid '+(benched?sq.color:'var(--as)'),background:benched?sq.color:'transparent',color:benched?'#fff':'var(--text2)',borderRadius:8,padding:'3px 10px',fontSize:10,fontWeight:600,cursor:'pointer',fontFamily:'var(--font-body)'}}>{benched?'Benched — tap to return':'Bench player'}</button>
       </div>
@@ -87,9 +98,10 @@ function SBTitle({ player }) {
 // Player marker — logo avatar with squad ring, count badge, name plate (wraps in its squad line)
 function SBMarker({ player, count, benched, active, onClick }) {
   const sq = SB_SQUADS.find(s => s.key === player.squad);
+  const dp = player.dept && SB_DEPTS[player.dept];
   return (
     <button onClick={onClick} style={{
-      display:'flex',flexDirection:'column',alignItems:'center',gap:4,border:'none',background:'transparent',
+      display:'flex',flexDirection:'column',alignItems:'center',gap:7,border:'none',background:'transparent',
       cursor:'pointer',fontFamily:'var(--font-body)',padding:0,opacity:benched?.55:1,filter:benched?'grayscale(.8)':'none',
       transition:'opacity .3s',width:'100%',minWidth:0,
     }}>
@@ -98,6 +110,7 @@ function SBMarker({ player, count, benched, active, onClick }) {
         {benched
           ? <span style={{position:'absolute',top:-4,right:-8,fontSize:7,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:'#fff',background:'#57534E',borderRadius:6,padding:'2px 5px'}}>Bench</span>
           : <span style={{position:'absolute',top:-3,right:-5,minWidth:16,height:16,borderRadius:8,background:sq.color,color:'#fff',fontSize:9,fontWeight:700,display:'inline-flex',alignItems:'center',justifyContent:'center',padding:'0 4px',border:'2px solid #fff'}}>{count}</span>}
+        {dp && <span title={dp.name} style={{position:'absolute',bottom:-6,left:'50%',transform:'translateX(-50%)',width:15,height:15,borderRadius:'50%',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:8.5,lineHeight:1,background:dp.color,border:'1.5px solid #fff'}}>{dp.code}</span>}
       </span>
       <span style={{fontSize:9,fontWeight:700,color:'#fff',background:'rgba(0,0,0,.38)',borderRadius:7,padding:'1px 7px',letterSpacing:'.3px',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.label}</span>
     </button>
@@ -114,9 +127,11 @@ function SquadBoard({ open, onClose, phase, wide }) {
   function addPlayer(squad) {
     const name = window.prompt('Player name?');
     if (!name || !name.trim()) return;
+    let dept = (window.prompt('Department? lang / fin / car / ops / hlth / ref (blank = none)') || '').trim().toLowerCase();
+    if (!SB_DEPTS[dept]) dept = undefined;
     const sq = SB_SQUADS.find(s=>s.key===squad);
     const id = 'p' + Date.now();
-    setPlayers(p => [...p, { id, label:name.trim(), icon:sq.icon, squad }]);
+    setPlayers(p => [...p, { id, label:name.trim(), icon:sq.icon, squad, dept }]);
     setOpenId(id);
   }
   const openPlayer = players.find(p=>p.id===openId);
@@ -144,13 +159,23 @@ function SquadBoard({ open, onClose, phase, wide }) {
     </PitchField>
   );
   const legend = (
-    <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
-      {SB_SQUADS.map(sq => (
-        <span key={sq.key} style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.7px',color:sq.color}}>
-          <span style={{width:9,height:9,borderRadius:'50%',background:sq.color,display:'inline-block'}}></span>
-          {sq.name}{phase===sq.key ? ' · on the ball' : ''}
-        </span>
-      ))}
+    <div style={{display:'flex',flexDirection:'column',gap:6}}>
+      <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+        {SB_SQUADS.map(sq => (
+          <span key={sq.key} style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'.7px',color:sq.color}}>
+            <span style={{width:9,height:9,borderRadius:'50%',background:sq.color,display:'inline-block'}}></span>
+            {sq.name}{phase===sq.key ? ' · on the ball' : ''}
+          </span>
+        ))}
+      </div>
+      <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+        <span style={{fontSize:8.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'.8px',color:'var(--text2)'}}>Departments</span>
+        {Object.entries(SB_DEPTS).map(([k,d]) => {
+          const n = players.filter(p=>p.dept===k && !benched[p.id]).length;
+          if (!n) return null;
+          return <span key={k} title={d.name} style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:8.5,fontWeight:800,color:'#fff',background:d.color,borderRadius:6,padding:'2px 7px'}}>{d.code} {d.name.split(' ')[0].toUpperCase()} · {n}</span>;
+        })}
+      </div>
     </div>
   );
   return (

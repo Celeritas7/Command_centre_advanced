@@ -25,8 +25,8 @@ a{color:var(--accent)}a:hover{color:var(--text)}
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" src="PitchHome.jsx?v=4"></script>
-<script type="text/babel" src="SquadBoard.jsx?v=11"></script>
+<script type="text/babel" src="PitchHome.jsx?v=7"></script>
+<script type="text/babel" src="SquadBoard.jsx?v=13"></script>
 <script type="text/babel" src="MyApps.jsx?v=4"></script>
 <script type="text/babel" src="OfficeDashboard.jsx?v=3"></script>
 <script type="text/babel" src="LockScreen.jsx?v=3"></script>

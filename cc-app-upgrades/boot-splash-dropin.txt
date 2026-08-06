@@ -1,0 +1,74 @@
+<!-- ============================================================
+Command Centre — radar boot splash (green night-ops scope)
+Vanilla drop-in. Paste this ENTIRE block into index.html
+immediately BEFORE </body>. No other changes required.
+
+- Runs once per full page load: ~3.4s, fade-out starts at 2.85s,
+  node removes itself from the DOM after the fade.
+- If you want it to hold until Supabase finishes loading, call
+  window.ccSplashHold() right away and window.ccSplashDone()
+  when the load resolves (still enforces a 1.2s minimum).
+============================================================ -->
+<style>
+@keyframes ccSweep{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes ccPing{0%{transform:scale(.4);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+@keyframes ccBlip{0%,18%{opacity:0;transform:scale(.3)}22%{opacity:1;transform:scale(1.5)}30%{transform:scale(1)}70%{opacity:1}100%{opacity:0;transform:scale(.6)}}
+@keyframes ccRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ccScan{0%{top:-10%}100%{top:110%}}
+#ccSplash{position:fixed;inset:0;z-index:99999;background:radial-gradient(120% 90% at 50% 38%,#101B14 0%,#0A120D 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;overflow:hidden;transition:opacity .55s ease}
+#ccSplash.cc-out{opacity:0;pointer-events:none}
+#ccSplash .cc-scanline{position:absolute;left:0;right:0;height:90px;background:linear-gradient(180deg,transparent,rgba(74,222,128,.06),transparent);animation:ccScan 3.4s linear infinite;pointer-events:none}
+#ccSplash .cc-corner{position:absolute;width:22px;height:22px;border:0 solid rgba(74,222,128,.5)}
+#ccSplash .cc-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8.5px;letter-spacing:1px;color:rgba(74,222,128,.75);line-height:1.6}
+#ccSplash .cc-scope{position:relative;width:200px;height:200px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 50% 50%,rgba(74,222,128,.10) 0%,rgba(74,222,128,.04) 45%,transparent 72%);border:1.5px solid rgba(74,222,128,.5);box-shadow:0 0 40px rgba(74,222,128,.25),inset 0 0 30px rgba(74,222,128,.12)}
+#ccSplash .cc-ring{position:absolute;border-radius:50%;border:1px solid rgba(74,222,128,.28)}
+#ccSplash .cc-blip{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#C9F9D9;box-shadow:0 0 10px 3px rgba(74,222,128,.8);animation:ccBlip 2s linear infinite}
+#ccSplash .cc-pingring{position:absolute;inset:-14px;border-radius:50%;border:1.5px solid rgba(74,222,128,.6);animation:ccPing 2s ease-out infinite}
+#ccSplash .cc-title{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:700;color:#EAF7EE;text-shadow:0 0 24px rgba(74,222,128,.35)}
+#ccSplash .cc-msg{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#4ADE80;margin-top:6px;animation:ccRise .35s ease both}
+#ccSplash .cc-seg{width:8px;height:3px;border-radius:2px;background:rgba(74,222,128,.25);transition:all .3s}
+#ccSplash .cc-seg.on{width:18px;background:#4ADE80}
+</style>
+<div id="ccSplash">
+  <div class="cc-scanline"></div>
+  <span class="cc-corner" style="left:10px;top:10px;border-top-width:1.5px;border-left-width:1.5px"></span>
+  <span class="cc-corner" style="right:10px;top:10px;border-top-width:1.5px;border-right-width:1.5px"></span>
+  <span class="cc-corner" style="left:10px;bottom:10px;border-bottom-width:1.5px;border-left-width:1.5px"></span>
+  <span class="cc-corner" style="right:10px;bottom:10px;border-bottom-width:1.5px;border-right-width:1.5px"></span>
+  <div class="cc-mono" style="position:absolute;top:14px;left:42px">CC-OS v2.6<br>BOOT SEQUENCE</div>
+  <div class="cc-mono" style="position:absolute;top:14px;right:42px;display:flex;align-items:center;gap:6px;color:rgba(74,222,128,.85)"><span style="width:6px;height:6px;border-radius:50%;background:#4ADE80;box-shadow:0 0 8px 2px rgba(74,222,128,.8);animation:ccPing 1.2s ease-out infinite"></span>AI COACH ONLINE</div>
+  <div class="cc-scope">
+    <span class="cc-ring" style="left:14%;top:14%;width:72%;height:72%"></span>
+    <span class="cc-ring" style="left:27%;top:27%;width:46%;height:46%"></span>
+    <span class="cc-ring" style="left:39%;top:39%;width:22%;height:22%"></span>
+    <span style="position:absolute;left:50%;top:4px;bottom:4px;width:1px;background:rgba(74,222,128,.2)"></span>
+    <span style="position:absolute;top:50%;left:4px;right:4px;height:1px;background:rgba(74,222,128,.2)"></span>
+    <div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><div style="position:absolute;inset:0;animation:ccSweep 2s linear infinite;background:conic-gradient(from 0deg,transparent 0deg,transparent 250deg,rgba(74,222,128,.05) 290deg,rgba(74,222,128,.28) 340deg,rgba(201,249,217,.85) 358deg,transparent 360deg)"></div></div>
+    <span class="cc-blip" style="left:66%;top:30%;animation-delay:.35s"></span>
+    <span class="cc-blip" style="left:30%;top:62%;animation-delay:1.15s"></span>
+    <span class="cc-blip" style="left:58%;top:72%;animation-delay:1.7s"></span>
+    <span class="cc-blip" style="left:38%;top:24%;animation-delay:.8s"></span>
+    <span style="position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#C9F9D9;box-shadow:0 0 12px 4px rgba(74,222,128,.9)"></span>
+    <span class="cc-pingring"></span>
+    <span class="cc-pingring" style="animation-delay:1s"></span>
+  </div>
+  <div style="text-align:center;animation:ccRise .5s ease both">
+    <div class="cc-title">Command Centre</div>
+    <div class="cc-msg" id="ccSplashMsg">Scanning the pitch…</div>
+    <div style="display:flex;gap:5px;justify-content:center;margin-top:12px"><span class="cc-seg on"></span><span class="cc-seg" id="ccSeg1"></span><span class="cc-seg" id="ccSeg2"></span></div>
+    <div class="cc-mono" style="letter-spacing:1.5px;color:rgba(74,222,128,.6);margin-top:10px">CALIBRATING AI COACH · <span id="ccSplashPct">0</span>%</div>
+  </div>
+</div>
+<script>
+(function(){
+  var el=document.getElementById('ccSplash'),t0=Date.now(),hold=false,pct=0;
+  var MSGS=['Scanning the pitch…','Squads located','Possession mapped'],mi=0;
+  var mT=setInterval(function(){ if(mi<MSGS.length-1){mi++;var m=document.getElementById('ccSplashMsg');m.textContent=MSGS[mi];m.style.animation='none';void m.offsetWidth;m.style.animation='ccRise .35s ease both';if(mi>=1)document.getElementById('ccSeg1').className='cc-seg on';if(mi>=2)document.getElementById('ccSeg2').className='cc-seg on';} },1000);
+  var pT=setInterval(function(){ pct=Math.min(pct+Math.ceil(Math.random()*4)+1,100);document.getElementById('ccSplashPct').textContent=pct; },90);
+  function out(){ if(!el)return;clearInterval(mT);clearInterval(pT);el.classList.add('cc-out');setTimeout(function(){el.remove();el=null;},600); }
+  var auto=setTimeout(function(){ if(!hold)out(); },2850);
+  window.ccSplashHold=function(){ hold=true;clearTimeout(auto); };
+  window.ccSplashDone=function(){ var wait=Math.max(0,1200-(Date.now()-t0));setTimeout(out,wait); };
+})();
+</script>
+<!-- ================= end radar boot splash ================= -->

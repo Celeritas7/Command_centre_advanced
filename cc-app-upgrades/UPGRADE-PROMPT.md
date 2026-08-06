@@ -217,34 +217,23 @@ Acceptance criteria:
 - Existing Supabase persistence (`saveDayPlans`) and the index.html interrupt
   scheduler (`dpCheckInterrupts`) keep working unchanged.
 
-### Trigger Engine + Clash Rules — DECLINED TWICE
+### Addition (post-implementation): Trigger Engine + Clash Rules strip
 
-> **Audited 2026-08-02 as a restore; re-proposed 2026-08-05 as net-new.
-> Declined both times — do not re-open, do not implement.**
->
-> **As a restore, there is nothing to restore.** Neither card has ever existed in this
-> repo. `git log --all -S"Trigger Engine"` and `-S"Clash Rules"` over `manager.html`
-> return nothing, back to the file's first commit `01ac33b`; pre-upgrade `pgDayPlans()`
-> (`12d9f6f`) ends at the Quick Presets card and returns. The strings "Morning Kickoff
-> 07:00", "Lunch Break 12:00", "Defenders' 20:00" and "sleep gate is absolute" appear
-> nowhere in the repo. There is no prior markup, class, or handler to restore verbatim.
->
-> **As net-new work, declined on three grounds:**
-> - `pgBrain()` already owns this. Clash resolution lives there (🏆 Priority Tiers,
->   ⚙️ Override Rules — which renders `clashRules.weekendShieldsUp`, i.e. "Weekend
->   shields" — ⚡ Clash Simulator, ⚠️ Active Clashes), backed by `clashPriorities` /
->   `clashRules` / `saveClash()` / `resolveClash()`. A second surface editing the same
->   state is a duplicate, not a feature.
-> - The three time-lock pills have no backing enable/disable flag anywhere in the app,
->   so they could only ever render display-only. The proposal concedes this ("don't
->   invent state") — which leaves a card whose only live control is the one toggle
->   `pgBrain()` already has.
-> - No markup is available. The proposal cites `ui_kits/manager/index.html` and
->   `Manager.jsx` in a separate design-system project; neither is in this repo.
->
-> The real trigger systems are `gpsTriggers` (rendered by `pgCommute()` ⚡ Triggers,
-> engine in `index.html` `gpsCheckTriggers()`) and `costTriggerCfg.timeTriggers`
-> (`pgSettings` 💰 Smart Expense Triggers) — neither is a Day Plans concern.
+A two-card strip at the bottom of the Day Plans page, below Quick Presets. This is
+NET-NEW (it exists only in the design kit — not in git history). Reference markup/
+styling: `ui_kits/manager/index.html` + `Manager.jsx` in the design-system project
+(two `MgrCard`s in a 1fr/1fr grid, gap 12).
+
+- **🧠 Trigger Engine** — sub "GPS + time triggers that flip possession and fire
+  takeovers." Pill toggles: Morning Kickoff 07:00, Lunch Break 12:00,
+  Defenders' 20:00 (from the lock overlay schedule), Weekend shields (wired to
+  `clashRules.weekendShieldsUp.enabled`, persisted the same way Brain's Clash Rules
+  tab persists it). Time-lock pills may be display-only if the app has no
+  enable/disable flag for them — don't invent state.
+- **⚔️ Clash Rules** — sub "When two squads want the ball, priority decides." One
+  red-outlined row: green pill "Sleep wins" · VS · red pill "Study 22:00" · right-
+  aligned muted "sleep gate is absolute". Values read from the sleep gate config
+  (SLEEP_FROM 22:00) — display-only; editing stays in Brain's ⚔️ tab.
 
 ### Amendment (v2): My Apps grouped by squad → category
 
@@ -271,6 +260,46 @@ in `ui_kits/command_centre/dockless-prototype.html`):
   status ticker cycling every 1s: "Scanning the pitch…" → "Squads located" →
   "Possession mapped", with a 3-segment progress bar.
 - Total run ~3.4s: fade-out begins at 2.85s.
+
+## Upgrade 6 — Department badges on players
+
+Every player (category) belongs to a DEPARTMENT — the same groups My Apps uses
+(Language Study, Finance, Career, Daily Ops, Health, Reflection). Squads answer
+"when do I work on it"; departments answer "what area of life it is". A player
+shows its department as a small colored tag pinned to the bottom of its ball, so
+balance across areas is visible at a glance even inside one squad.
+
+Reference: `SquadBoard.jsx.txt` (SB_DEPTS, SBMarker dept tag, legend counts) and
+`dockless-prototype.html.txt` (PitchHome dots pass dept to the ball marker).
+
+- Department table (id → name / short code / color), single source shared by
+  index.html pitch, Squad Board, and My Apps:
+  lang "Language Study" 🈴 #38A169 · fin "Finance" 💰 #B7791F ·
+  car "Career" 💼 #3B5BDB · ops "Daily Ops" 📅 #D97706 ·
+  hlth "Health" 💪 #0E7490 · ref "Reflection" 📓 #7C3AED.
+  The short tag is the department LOGO (emoji), not a text code — reuse each
+  My Apps category's icon where one exists.
+  If appDB already has these as My Apps categories, reuse those names/colors
+  rather than duplicating.
+- Persist a category→department map as `cf_dept` (same `cf_*` Supabase batch as
+  `cf_benched` / `cf_task_priority`). Unmapped categories simply show no tag.
+- Pitch (renderPitch in index.html): on each player ball, a 16px round chip
+  pinned bottom-center — dept color bg, the dept emoji at ~9px, 1.5px white
+  border, title= full dept name. Push the name plate down ~4px so they don't
+  collide.
+- Squad Board markers: same 15px chip at bottom-center of the 40px avatar
+  (count bubble stays top-right, Bench tag unchanged).
+- Squad Board legend: below the squad legend, a "Departments" row of colored
+  pills with live player counts (benched players excluded) — the balance view.
+- Assign sheet header: full department name pill next to the squad badge.
+- Add-player flow: after the name prompt, ask for department (blank allowed).
+- Home-pitch player balls show the player's own logo (its category icon from
+  appDB, same one My Apps uses) INSIDE the ball instead of the short name text;
+  the name plate below the ball is unchanged. Dept chip stays at bottom-center.
+
+Acceptance: tags render on pitch + Squad Board from the same `cf_dept` map;
+editing the map updates both without reload; no tag when unmapped; colors match
+My Apps category colors.
 
 ## Acceptance criteria
 
@@ -300,18 +329,9 @@ Dockless navigation:
 - No dock, no corner FABs, no Kickoff button remain; nothing overlaps the pitch or
   the coach dot.
 
-Radar splash (v3 night-ops scope — supersedes the original U4 criteria):
-- Shows on every full page load; the sweep beam rotates, blips pop as it passes, and
-  the status ticker runs Scanning the pitch… → Squads located → Possession mapped.
-- Fades once the initial data load resolves but never before ~2.85s (the full boot
-  sequence), ~3.4s total including the .55s fade.
-- One exception: the sleep-gate path calls `dismissSplash(true)`, which cuts the
-  minimum to ~400ms. That path loads no data and only has to reach the lock screen,
-  so holding the scope there is dead time.
-- **Deliberately unthemed — do not re-open as a theming bug.** The v3 scope is fixed
-  dark (`#101B14`→`#0A120D`, green `#4ADE80`) exactly as the prototype specifies, and
-  does NOT read the theme vars. This replaces the original U4 line "uses theme vars so
-  it matches whatever location theme loads first", which no longer applies.
+Radar splash:
+- Shows on every full page load, radar spins, fades out after data load (≥1.2s),
+- Uses theme vars so it matches whatever location theme loads first.
 
 ## Out of scope
 - No Supabase schema changes (unless the owner opts into a priority column).
