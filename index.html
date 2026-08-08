@@ -675,6 +675,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ma-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .ma-chip.on.act{background:#16A34A;border-color:#16A34A}
 .ma-groups{display:flex;flex-direction:column;gap:16px}
+/* v2: squad sections wrap category groups — ⚔️ Attackers / 🏃 Midfielders / 🪞 Defenders */
+.ma-squad{background:var(--card);border:1.5px solid;border-radius:14px;padding:8px}
+.ma-sq-hd{display:flex;align-items:center;gap:5px;flex-wrap:wrap;border:1.5px solid;border-radius:10px;padding:6px 8px;margin-bottom:8px}
+.ma-sq-ico{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}
+.ma-sq-nm{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap}
+.ma-sq-sub{font-size:8.5px;color:var(--text2);white-space:nowrap}
+.ma-sq-count{margin-left:auto;font-size:9px;font-weight:700;white-space:nowrap}
+.ma-add-cat{background:transparent;border-radius:7px;padding:2px 7px;font-size:8.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.ma-sq-cats{display:flex;flex-direction:column;gap:12px}
+.ma-sq-move{border:1px solid var(--as);background:var(--bg);border-radius:6px;padding:1px 5px;font-size:9px;cursor:pointer;line-height:1.5;flex-shrink:0}
 .ma-g-hd{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px;padding-bottom:5px}
 .ma-g-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .ma-sub-chip{font-size:8px;font-weight:700;letter-spacing:.6px;border-radius:6px;padding:1px 6px;white-space:nowrap}
@@ -3653,6 +3663,64 @@ function alAllApps(){
 // Group palette — appDB has no color field, derive it from the display index
 var AL_COLORS=['#3B5BDB','#38A169','#E8722A','#7C3AED'];
 function alColor(i){return AL_COLORS[i%AL_COLORS.length]}
+// ===== v2: squad grouping =====
+// appDB has no squad field. Unset categories fall back to a name heuristic; nothing is
+// written to storage until the owner moves one with the ⚔️/🏃/🪞 button in edit mode,
+// which sets cat.squad — it then persists with the rest of appDB via saveAppDB().
+var AL_SQUADS=[
+  {key:'attacker',ico:'⚔️',name:'Attackers',color:'#DC2626',sub:'deep work & growth'},
+  {key:'midfielder',ico:'🏃',name:'Midfielders',color:'#D97706',sub:'routines & daily ops'},
+  {key:'defender',ico:'🪞',name:'Defenders',color:'#7C3AED',sub:'reflection & wind-down'},
+];
+var AL_SQUAD_GUESS={
+  'language study':'attacker','coding':'attacker','career':'attacker','finance':'attacker',
+  'app generation':'attacker','six sigma apps':'attacker','mechanical':'attacker',
+  'general purpose':'midfielder','daily ops':'midfielder','food':'midfielder','health':'midfielder',
+  'reflection':'defender','commonplace':'defender','sleep':'defender','psychology':'defender'
+};
+function alSquadOf(cat){
+  var k=cat&&cat.squad;
+  if(k&&AL_SQUADS.some(function(s){return s.key===k}))return k;
+  return AL_SQUAD_GUESS[String((cat&&cat.name)||'').toLowerCase()]||'midfielder';
+}
+function alSquadDef(key){
+  var m=AL_SQUADS.filter(function(s){return s.key===key});
+  return m.length?m[0]:AL_SQUADS[1];
+}
+// Edit mode: cycle a category ⚔️ → 🏃 → 🪞. The only writer of cat.squad.
+function alCycleSquad(ci){
+  var cat=appDB[ci];if(!cat)return;
+  var keys=AL_SQUADS.map(function(s){return s.key});
+  cat.squad=keys[(keys.indexOf(alSquadOf(cat))+1)%keys.length];
+  openAppLaunch();
+}
+// One squad section: coloured banner + the category groups assigned to it.
+// SOLE emitter of .ma-squad / .ma-sq-hd. Both declare `border:1.5px solid` with no
+// colour in CSS, so the inline border-color set here is what keeps them off currentColor.
+function alRenderSquad(sq,cats){
+  var apps=[];
+  cats.forEach(function(item){alGroupApps(item.cat,item.ci).forEach(function(x){apps.push(x)})});
+  var vis=apps.filter(function(x){return alShow(x.a)});
+  var narrowed=!!(alQuery||'').trim()||alFilter!=='all';
+  if(!alEditMode&&!vis.length&&narrowed)return ''; // search/filter hides emptied squads
+  var onCount=apps.filter(function(x){return x.a.active!==false}).length;
+  var h='<div class="ma-squad" style="border-color:'+sq.color+'2E">';
+  h+='<div class="ma-sq-hd" style="background:'+sq.color+'0F;border-color:'+sq.color+'2E">';
+  h+='<span class="ma-sq-ico" style="background:'+sq.color+'">'+sq.ico+'</span>';
+  h+='<span class="ma-sq-nm" style="color:'+sq.color+'">'+esc(sq.name)+'</span>';
+  h+='<span class="ma-sq-sub">'+esc(sq.sub)+'</span>';
+  h+='<span class="ma-sq-count" style="color:'+sq.color+'">'+onCount+'/'+apps.length+'</span>';
+  if(alEditMode)h+='<button class="ma-add-cat" style="border:1px dashed '+sq.color+'66;color:'+sq.color+'" onclick="alAddCategory(&quot;'+sq.key+'&quot;)">＋ Category</button>';
+  h+='</div><div class="ma-sq-cats">';
+  var shown=0;
+  cats.forEach(function(item){
+    var sec=alRenderGroup(item.cat,item.ci,alColor(item.ci));
+    if(sec){shown++;h+=sec}
+  });
+  if(!shown)h+='<div class="ma-empty" style="padding:2px 0 4px">'+(alEditMode?'No categories yet — use ＋ Category.':'Nothing here right now.')+'</div>';
+  h+='</div></div>';
+  return h;
+}
 
 // Flatten a category into one list of tiles: its own apps plus every
 // subgroup's apps merged in (each tile remembers which subgroup it came from)
@@ -3725,9 +3793,9 @@ function alCommitAddRow(ci){
 function alSetFilter(f){alFilter=f;openAppLaunch()}
 function alSetQuery(v){alQuery=v;openAppLaunch()}
 
-// One full-width group section: header rule + merged tile grid
-function alRenderGroup(cat,ci,gi){
-  var color=alColor(gi);
+// Colour now comes from the caller (alRenderSquad passes alColor(ci)) instead of a
+// display index, so a category keeps its accent wherever it sits in the squad order.
+function alRenderGroup(cat,ci,color){
   var all=alGroupApps(cat,ci);
   var vis=all.filter(function(x){return alShow(x.a)});
   if(!alEditMode&&!vis.length&&(alQuery||'').trim())return ''; // search hides empty groups
@@ -3739,7 +3807,11 @@ function alRenderGroup(cat,ci,gi){
     h+='<span class="ma-sub-chip" style="color:'+color+';border:1px solid '+color+'44">'+esc(String(sub.name||'').toUpperCase())+'</span>';
   });
   h+='<span class="ma-g-count">'+onCount+'/'+all.length+'</span>';
-  if(alEditMode)h+='<button class="ma-add-app" style="border:1px dashed '+color+'66;color:'+color+'" onclick="alShowAddRow('+ci+')">＋ App</button>';
+  if(alEditMode){
+    var sqd=alSquadDef(alSquadOf(cat));
+    h+='<button class="ma-sq-move" title="'+escA('Squad: '+sqd.name+' — tap to move')+'" onclick="alCycleSquad('+ci+')">'+sqd.ico+'</button>';
+    h+='<button class="ma-add-app" style="border:1px dashed '+color+'66;color:'+color+'" onclick="alShowAddRow('+ci+')">＋ App</button>';
+  }
   h+='</div>';
   if(alEditMode&&alAddingIn===ci){
     h+='<div class="ma-addrow"><input id="alNewName" placeholder="App name" style="flex:1" onkeydown="if(event.key===&quot;Enter&quot;)alCommitAddRow('+ci+')"><input id="alNewUrl" placeholder="https://…" style="flex:1.4" onkeydown="if(event.key===&quot;Enter&quot;)alCommitAddRow('+ci+')">';
@@ -3811,8 +3883,10 @@ function alAddGroup(ci){
   appDB[ci].subs.push({id:'sub_'+Date.now(),ico:'🏷',name:'New Group',apps:[]});
   openAppLaunch();
 }
-function alAddCategory(){
-  appDB.push({id:'cat_'+Date.now(),ico:'📂',name:'New Category',apps:[{id:'a_'+Date.now(),ico:'📱',name:'New App',url:'',active:true}]});
+function alAddCategory(squad){
+  var cat={id:'cat_'+Date.now(),ico:'📂',name:'New Category',apps:[{id:'a_'+Date.now(),ico:'📱',name:'New App',url:'',active:true}]};
+  if(squad)cat.squad=squad; // per-squad ＋ Category button passes its squad key
+  appDB.push(cat);
   var ci=appDB.length-1;
   openAppLaunch();
   setTimeout(function(){try{alOpenEditOv('appDB['+ci+'].apps[0]')}catch(e){console.error(e)}},100);
@@ -3929,18 +4003,21 @@ function openAppLaunch(){
   h+='<button class="ma-chip'+(alFilter==='inactive'?' on':'')+'" onclick="alSetFilter(&quot;inactive&quot;)">Off</button></div>';
   h+='</div>';
 
-  // --- Groups: one full-width section each. View mode honours the order rules;
-  //     edit mode uses raw appDB order so the ci indices match. ---
+  // --- Squad sections (v2): ⚔️/🏃/🪞 banners, each holding its categories.
+  //     View mode honours the order rules; edit mode uses raw appDB order so ci matches.
+  //     Category creation moved into the per-squad ＋ Category buttons, which pass the
+  //     squad key — the old global ＋ New group could not assign one. ---
   var displayList=alEditMode?appDB.map(function(c,i){return{cat:c,ci:i}}):getOrderedAppDB().map(function(c){return{cat:c,ci:appDB.indexOf(c)}});
   var activeRule=alEditMode?null:matchAppOrderRule();
   h+='<div class="ma-groups">';
   var shown=0;
-  displayList.forEach(function(item,gi){
-    var sec=alRenderGroup(item.cat,item.ci,gi);
+  AL_SQUADS.forEach(function(sq){
+    var cats=displayList.filter(function(item){return alSquadOf(item.cat)===sq.key});
+    if(!cats.length&&!alEditMode)return; // empty squads show only in edit mode, to receive a category
+    var sec=alRenderSquad(sq,cats);
     if(sec){shown++;h+=sec}
   });
-  if(!shown)h+='<div class="ma-empty" style="text-align:center;padding:24px 0">No apps match “'+esc(alQuery)+'”.</div>';
-  if(alEditMode)h+='<button class="ma-newgroup" onclick="alAddCategory()">＋ New group</button>';
+  if(!shown)h+='<div class="ma-empty" style="text-align:center;padding:24px 0">'+((alQuery||'').trim()?'No apps match “'+esc(alQuery)+'”.':'Nothing matches this filter.')+'</div>';
   h+='</div>';
 
   if(activeRule&&!alEditMode)h+='<div class="ma-rule">📐 Order: '+esc(activeRule.label)+'</div>';
